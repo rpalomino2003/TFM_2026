@@ -1,0 +1,1671 @@
+---
+title: "El impacto de la pandemia de COVID-19 en la organización asistencial de los hospitales públicos españoles: evidencia a partir de datos de panel de las comunidades autónomas (2010-2024)"
+subtitle: "TFM. Máster Universitario en Investigación en Economía. Especialidad métodos cuantitativos y ciencia del dato. UNED. Curso 2025-2026"
+author: "Rafael Palomino Rodríguez"
+date: "Septiembre 2026"
+lang: es
+
+toc: false
+toc-depth: 4
+number-sections: true
+
+format:
+  html:
+    code-fold: false
+    code-tools: false
+    theme: cosmo
+    embed-resources: true
+
+execute:
+  echo: false
+  warning: false
+  message: false
+
+editor:
+  markdown:
+    wrap: sentence
+---
+
+```{r}
+
+# Carga de librerías
+
+source("C:/Users/rpalo/Dropbox/QUODEM_OFICINA/2 PROYECTOS/QUODEM/2026/R_utilities/utilites.R")
+
+datos_originales <- read_excel(path = "../FUENTES DATOS/dataset.xlsx", sheet = "dataset", col_names = TRUE)
+
+datos_originales_diccionario <- read_excel(path = "../FUENTES DATOS/dataset.xlsx", sheet = "diccionario_dataset", col_names = TRUE)
+
+datos <- datos_originales
+
+datos_diccionario <- datos_originales_diccionario
+
+# Convertimos a dataset
+
+datos <- as.data.frame(datos)
+
+datos_diccionario <- as.data.frame(datos_diccionario)
+
+# Quitamos duplicados
+
+datos <- unique(datos)
+
+datos_diccionario <- unique(datos_diccionario)
+
+# Transformar a factor
+
+factores <- c("comunidad")
+
+datos <- datos %>%
+  mutate(across(factores, as.factor))
+
+factores2 <- c("Categoría")
+
+datos_diccionario <- datos_diccionario %>%
+  mutate(across(factores2, as.factor))
+
+datos$consultas_telematicas_1000hab <- 
+  datos$consultas_telematicas / (datos$habitantes / 1000)
+
+datos$gasto_percapita_real <- 
+  datos$gasto_total_gasto * 100 / (datos$habitantes*datos$ipc_acumulado)
+
+datos$gasto_personal_percapita_real <- 
+  datos$gasto_gasto_personal * 100 / (datos$habitantes*datos$ipc_acumulado)
+
+datos$gasto_farmacia_percapita_real <- 
+  datos$gasto_compras_farmacia * 100 / (datos$habitantes*datos$ipc_acumulado)
+
+```
+
+```{r}
+
+#Funciones
+
+plot_nacional_ponderado <- function(datos, variable) {
+
+  serie_nacional <- datos %>%
+    group_by(año) %>%
+    summarise(
+      valor = weighted.mean(
+        .data[[variable]],
+        habitantes,
+        na.rm = TRUE
+      ),
+      .groups = "drop"
+    )
+
+  p <- ggplot(serie_nacional, aes(x = año, y = valor)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 2) +
+    geom_vline(
+      xintercept = 2020,
+      linetype = "dashed",
+      color = "red"
+    ) +
+    labs(
+      title = paste("Evolución nacional ponderada:", variable),
+      subtitle = "Media ponderada por población",
+      x = "Año",
+      y = variable
+    ) +
+    theme_minimal()
+
+  print(p)
+
+#  formatear_tabla(serie_nacional)
+}
+
+plot_ccaa <- function(datos, variable) {
+
+  ggplot(
+    datos,
+    aes(
+      x = año,
+      y = .data[[variable]],
+      group = comunidad,
+      colour = comunidad
+    )
+  ) +
+    geom_line(linewidth = 0.8) +
+    geom_point(size = 1.5) +
+    geom_vline(
+      xintercept = 2020,
+      linetype = "dashed",
+      colour = "red"
+    ) +
+    labs(
+      title = paste("Evolución por comunidad autónoma:", variable),
+      subtitle = "Series individuales por CCAA",
+      x = "Año",
+      y = variable
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "none"
+    )
+}
+
+plot_boxplot_anual <- function(datos, variable) {
+
+  ggplot(
+    datos,
+    aes(
+      x = factor(año),
+      y = .data[[variable]]
+    )
+  ) +
+    geom_boxplot() +
+    labs(
+      title = paste("Distribución anual:", variable),
+      subtitle = "Distribución entre comunidades autónomas",
+      x = "Año",
+      y = variable
+    ) +
+    theme_minimal()
+}
+
+```
+
+# Título
+
+El impacto de la pandemia de COVID-19 en la organización asistencial de los hospitales públicos españoles: evidencia a partir de datos de panel de las comunidades autónomas (2010-2024)
+
+# Autor
+
+Rafael Palomino Rodríguez. 
+
+# Tutor académico
+
+Prof. Dr. Mariano Matilla García.
+
+# Resumen
+
+La pandemia de COVID-19 supuso una alteración sin precedentes en el funcionamiento del sistema sanitario español, obligando a reorganizar la actividad asistencial hospitalaria y a adaptar los recursos disponibles para hacer frente a una situación de elevada presión asistencial. Aunque numerosos estudios han analizado el impacto inmediato de la pandemia, existe todavía una evidencia limitada sobre la persistencia de sus efectos en la organización de los hospitales públicos una vez superada la fase aguda de la crisis.
+
+El presente trabajo analiza la evolución de distintos indicadores de organización asistencial en los hospitales públicos españoles mediante un panel de datos correspondiente a las dieciocho comunidades y ciudades autónomas durante el período 2010-2024. A partir de la información procedente del Sistema de Información de Atención Especializada (SIAE), se seleccionaron siete indicadores representativos de diferentes dimensiones de la actividad hospitalaria. Para cada uno de ellos se estimó un modelo de datos de panel con efectos fijos por comunidad autónoma, tendencia temporal común y efectos específicos para los años 2020-2024, utilizando 2019 como año de referencia.
+
+Los resultados muestran que la pandemia produjo una alteración significativa de la organización asistencial, aunque con un comportamiento heterogéneo según el indicador analizado. Mientras que las altas hospitalarias y el índice de ocupación presentan desviaciones persistentes respecto a la trayectoria previa, otros indicadores, como las consultas hospitalarias y la frecuentación de urgencias, muestran una recuperación progresiva hasta niveles compatibles con los observados antes de la pandemia. Por su parte, la cirugía mayor ambulatoria, la estancia media y la dotación de puestos de hospital de día no presentan evidencia de cambios estructurales atribuibles a la COVID-19 una vez considerada la evolución previa de cada indicador.
+
+En conjunto, los resultados sugieren que la pandemia actuó principalmente como un factor de interrupción temporal o de aceleración de procesos organizativos ya existentes, más que como el origen de una transformación estructural generalizada del sistema hospitalario. Los análisis de robustez realizados respaldan la estabilidad de las principales conclusiones obtenidas.
+
+## Palabras clave
+
+COVID-19, organización asistencial, hospitales públicos, datos de panel, efectos fijos, Sistema Nacional de Salud.
+
+# Introducción
+
+La pandemia de COVID-19 constituyó uno de los mayores desafíos a los que se ha enfrentado el sistema sanitario español desde la creación del Sistema Nacional de Salud. La rápida propagación del virus y el elevado volumen de pacientes que requirieron atención hospitalaria obligaron a reorganizar la actividad asistencial en un periodo muy reducido de tiempo, priorizando la atención de los casos más graves y modificando el funcionamiento habitual de los hospitales públicos.
+
+Durante los primeros meses de la pandemia se adoptaron numerosas medidas organizativas dirigidas a aumentar la capacidad asistencial y garantizar la disponibilidad de recursos. Entre ellas se incluyeron la suspensión temporal de actividad programada, la reorganización de circuitos asistenciales, la ampliación de unidades de hospitalización y cuidados intensivos, el impulso de modalidades de atención no presencial y la redistribución de recursos humanos y materiales. Estas actuaciones permitieron responder a una situación excepcional, aunque también alteraron de forma significativa la actividad ordinaria del sistema hospitalario.
+
+Una vez superada la fase aguda de la pandemia, surge la cuestión de si estas modificaciones respondieron únicamente a una situación coyuntural o si, por el contrario, dieron lugar a cambios más permanentes en la organización asistencial de los hospitales públicos españoles. Aunque existe abundante literatura sobre el impacto clínico y epidemiológico de la COVID-19, así como sobre sus efectos inmediatos en la utilización de los servicios sanitarios, la evidencia disponible sobre la persistencia de estos cambios organizativos resulta todavía limitada, especialmente desde una perspectiva comparativa entre comunidades autónomas.
+
+En este contexto, el presente trabajo tiene como objetivo analizar la evolución de distintos indicadores de organización asistencial en los hospitales públicos españoles durante el período 2010-2024, utilizando información procedente del Sistema de Información de Atención Especializada (SIAE). Para ello se emplean modelos de datos de panel con efectos fijos por comunidad autónoma, incorporando una tendencia temporal común y efectos específicos para cada uno de los años posteriores al inicio de la pandemia. Esta estrategia permite distinguir entre las tendencias que ya existían antes de 2020 y las posibles desviaciones asociadas a la crisis sanitaria.
+
+El trabajo pretende aportar evidencia empírica sobre la existencia, magnitud y persistencia de los cambios observados en la organización asistencial hospitalaria tras la pandemia. Los resultados pueden contribuir a mejorar la comprensión de cómo respondió el sistema hospitalario español a la COVID-19 y ofrecer información útil para la planificación y evaluación de futuras políticas sanitarias orientadas a reforzar la resiliencia del Sistema Nacional de Salud.
+
+# Objetivos de la investigación
+
+El objetivo general de este trabajo es analizar si la pandemia de COVID-19 produjo cambios persistentes en la organización asistencial de los hospitales públicos españoles o si, por el contrario, las alteraciones observadas durante la crisis sanitaria respondieron fundamentalmente a modificaciones transitorias de la actividad hospitalaria.
+
+Para alcanzar este objetivo general, se plantean los siguientes objetivos específicos:
+
+- Analizar la evolución temporal de distintos indicadores representativos de la organización asistencial hospitalaria durante el período 2010-2024.
+
+- Identificar la existencia de cambios en la trayectoria de dichos indicadores tras el inicio de la pandemia, distinguiendo entre tendencias preexistentes y posibles alteraciones asociadas a la COVID-19.
+
+- Evaluar la persistencia de los efectos observados durante los años posteriores a la pandemia mediante una especificación dinámica que permita estimar de forma independiente la evolución de cada ejercicio comprendido entre 2020 y 2024.
+
+- Comprobar la robustez de los resultados obtenidos mediante especificaciones econométricas alternativas.
+
+En conjunto, estos objetivos pretenden aportar evidencia empírica sobre la magnitud y la persistencia de los cambios organizativos experimentados por los hospitales públicos españoles tras la pandemia, contribuyendo a una mejor comprensión de la capacidad de adaptación y recuperación del Sistema Nacional de Salud.
+
+## Objetivo general
+
+Analizar si la pandemia de COVID-19 produjo cambios estructurales en la organización asistencial de los hospitales públicos españoles durante el período 2010-2024, distinguiendo entre alteraciones transitorias y efectos persistentes.
+
+### Objetivos específicos
+
+- Analizar la evolución temporal de los principales indicadores de organización asistencial en los hospitales públicos españoles durante el período 2010-2024.
+
+- Identificar el impacto inmediato de la pandemia de COVID-19 y evaluar la recuperación de cada indicador en los años posteriores.
+
+- Determinar si las alteraciones observadas tras la pandemia constituyen cambios transitorios o modificaciones persistentes respecto a la trayectoria previa.
+
+- Analizar la heterogeneidad existente entre comunidades autónomas en la evolución de los distintos indicadores.
+
+- Comprobar la robustez de los resultados obtenidos mediante especificaciones econométricas alternativas.
+
+## Hipótesis de investigación
+
+La pandemia de COVID-19 modificó la organización asistencial de los hospitales públicos españoles, aunque dichos cambios no fueron homogéneos entre indicadores, coexistiendo efectos persistentes con alteraciones transitorias sobre tendencias preexistentes.
+
+# Justificación del estudio
+
+La pandemia de COVID-19 provocó una reorganización sin precedentes de la actividad asistencial en los hospitales públicos españoles. La necesidad de atender un elevado volumen de pacientes en un corto espacio de tiempo obligó a modificar la planificación habitual de los servicios, redistribuir recursos y adaptar numerosos procesos asistenciales. Aunque estas medidas fueron inicialmente concebidas para responder a una situación de emergencia, resulta pertinente analizar si algunas de ellas dieron lugar a cambios más permanentes en la organización hospitalaria.
+
+La mayor parte de los estudios publicados hasta la fecha se han centrado en el impacto epidemiológico y clínico de la pandemia o en sus consecuencias inmediatas sobre la utilización de los servicios sanitarios. Sin embargo, existe una menor evidencia sobre la evolución de la organización asistencial una vez superada la fase aguda de la crisis, especialmente desde una perspectiva longitudinal que permita diferenciar entre alteraciones transitorias y modificaciones persistentes.
+
+El presente trabajo pretende contribuir a cubrir esta laguna mediante el análisis de la evolución de distintos indicadores de organización asistencial en los hospitales públicos españoles durante el período 2010-2024. La utilización de información homogénea para el conjunto de las comunidades y ciudades autónomas, junto con la aplicación de modelos de datos de panel, permite evaluar de forma consistente si la pandemia modificó la trayectoria que seguían estos indicadores antes de 2020.
+
+Desde una perspectiva aplicada, los resultados obtenidos pueden aportar evidencia útil para comprender la capacidad de adaptación del Sistema Nacional de Salud y para orientar la planificación de futuras estrategias organizativas ante situaciones de elevada presión asistencial. Asimismo, el estudio contribuye a documentar la evolución reciente de la organización hospitalaria española mediante un enfoque cuantitativo basado en datos oficiales y comparable entre territorios.
+
+# Revisión bibliográfica y cuerpo teórico
+
+## Impacto de la pandemia sobre la actividad hospitalaria
+
+La pandemia de COVID-19 supuso una alteración sin precedentes del funcionamiento de los sistemas sanitarios a nivel mundial. La rápida expansión del virus obligó a reorganizar la actividad hospitalaria para priorizar la atención de los pacientes infectados, reduciendo simultáneamente gran parte de la actividad asistencial programada. Este proceso afectó tanto a la disponibilidad de recursos materiales y humanos como a la utilización de los diferentes servicios sanitarios.
+
+La evidencia internacional muestra que durante los primeros meses de la pandemia se produjo una reducción muy significativa de la utilización de los servicios sanitarios. La revisión sistemática realizada por Moynihan et al. identificó una disminución mediana del 37 % en la utilización de los servicios de salud respecto a los periodos previos a la pandemia, observándose reducciones en consultas, ingresos hospitalarios, pruebas diagnósticas e intervenciones terapéuticas. Asimismo, los autores destacan que la reducción fue especialmente intensa entre los pacientes con patologías menos graves, reflejando tanto las restricciones impuestas por los sistemas sanitarios como cambios en el comportamiento de la población ante el riesgo de contagio.
+
+Estas alteraciones no respondieron únicamente a un incremento extraordinario de la demanda asistencial derivada de la COVID-19. Numerosos hospitales suspendieron cirugía programada, reorganizaron unidades de hospitalización, incrementaron la disponibilidad de camas de cuidados intensivos y reasignaron profesionales sanitarios hacia las áreas con mayor presión asistencial. En consecuencia, la actividad hospitalaria experimentó cambios que trascendieron la mera variación coyuntural de la demanda.
+
+## Adaptación organizativa de los hospitales
+
+La respuesta hospitalaria frente a la pandemia exigió la implantación de nuevas formas de organización asistencial orientadas a mantener la continuidad de la atención minimizando el riesgo de transmisión del virus.
+
+Entre las principales transformaciones destacó la rápida expansión de la atención no presencial mediante consultas telefónicas y telemedicina. Aunque estas modalidades ya existían antes de la pandemia, su utilización era todavía limitada debido a barreras regulatorias, organizativas y tecnológicas. La emergencia sanitaria aceleró de forma extraordinaria su implantación, convirtiéndolas en un elemento esencial para garantizar el seguimiento clínico de numerosos pacientes sin necesidad de desplazamientos.
+
+Diversos trabajos describen esta transición como una auténtica aceleración de la transformación digital de los sistemas sanitarios. Keesara, Jonas y Schulman sostienen que la pandemia actuó como catalizador de una revolución digital en la asistencia sanitaria, impulsando el desarrollo de nuevas modalidades de atención remota y modificando tanto la organización clínica como los incentivos institucionales.
+
+En la misma línea, Webster documenta cómo numerosos países multiplicaron en pocas semanas el volumen de consultas virtuales, superando barreras regulatorias que habían limitado durante años el desarrollo de la telemedicina. Sin embargo, también señala que esta rápida transformación puso de manifiesto importantes limitaciones relacionadas con la infraestructura tecnológica, la formación de los profesionales y la integración de estas herramientas dentro de la práctica clínica habitual.
+
+Paralelamente, muchos hospitales reforzaron otros dispositivos asistenciales alternativos, como los hospitales de día o la cirugía mayor ambulatoria, con el objetivo de reducir la estancia hospitalaria convencional y minimizar el riesgo de exposición de los pacientes. Estas actuaciones constituyen un ejemplo de adaptación organizativa cuyo mantenimiento tras la pandemia resulta especialmente relevante desde el punto de vista de la planificación sanitaria.
+
+## Cambios estructurales y resiliencia de los sistemas sanitarios
+
+Una cuestión central en la literatura reciente consiste en determinar si las transformaciones observadas durante la pandemia constituyeron respuestas temporales o si dieron lugar a cambios estructurales en la organización de los sistemas sanitarios.
+
+El concepto de resiliencia sanitaria hace referencia a la capacidad de los sistemas de salud para absorber perturbaciones, adaptarse a situaciones extraordinarias y mantener la prestación de servicios esenciales. Desde esta perspectiva, la pandemia puede interpretarse como un experimento natural que permitió evaluar la capacidad de adaptación organizativa de los hospitales y analizar qué modificaciones permanecieron una vez superada la fase más crítica de la crisis.
+
+En este contexto, resulta especialmente relevante distinguir entre variaciones coyunturales y cambios permanentes. La recuperación de los niveles previos de actividad indicaría la existencia de un efecto transitorio, mientras que la persistencia de nuevas formas de organización asistencial evidenciaría una transformación estructural del sistema hospitalario.
+
+## Evidencia previa y contribución del presente estudio
+
+Aunque la literatura internacional ha documentado ampliamente las consecuencias inmediatas de la pandemia sobre la utilización de los servicios sanitarios, existe una evidencia más limitada acerca de la persistencia de estos cambios a medio plazo y de su impacto sobre la organización hospitalaria.
+
+La mayoría de los estudios analizan únicamente los primeros meses de la pandemia o se centran en determinados hospitales o áreas clínicas específicas. Son menos frecuentes los trabajos que examinan la evolución de indicadores estructurales mediante series temporales suficientemente largas y utilizando información homogénea para el conjunto del sistema sanitario.
+
+El presente estudio pretende contribuir a cubrir esta laguna mediante el análisis de la evolución de un conjunto de indicadores representativos de los recursos hospitalarios y de la organización asistencial en las comunidades y ciudades autónomas españolas durante el periodo 2010-2024. A diferencia de trabajos centrados exclusivamente en el impacto inmediato de la pandemia, esta investigación analiza si las modificaciones observadas alteraron de forma persistente la trayectoria previa de los indicadores hospitalarios, permitiendo diferenciar entre efectos transitorios y cambios estructurales.
+
+Desde el punto de vista metodológico, el empleo de modelos de datos de panel con efectos fijos posibilita controlar la heterogeneidad no observable entre territorios y estimar la evolución temporal del impacto de la pandemia, aportando una evidencia cuantitativa comparable para el conjunto del Sistema Nacional de Salud.
+
+# Datos
+
+## Fuentes de información
+
+La principal fuente de información utilizada en este estudio es el Sistema de Información de Atención Especializada (SIAE) del Ministerio de Sanidad, que proporciona información anual sobre los recursos, la actividad y el gasto de los hospitales del Sistema Nacional de Salud.
+
+El periodo de análisis comprende los años 2010-2024 e incluye información correspondiente a las 17 comunidades autónomas y las ciudades autónomas de Ceuta y Melilla, conformando un panel de 18 unidades territoriales (las ciudades autónomas estaban agrupadas como una).
+
+A partir de la información disponible en el SIAE se construyó un único conjunto de datos integrando variables procedentes de las distintas áreas temáticas publicadas por el sistema:
+
+- Comunidad autónoma.
+
+- Año.
+
+- Dotación.
+
+- Dotación tecnológica.
+
+- Personal.
+
+- Actividad en hospitalización.
+
+- Actividad quirúrgica.
+
+- Actividad obstétrica.
+
+- Actividad en consultas.
+
+- Actividad diagnóstica.
+
+- Actividad en urgencias.
+
+- Otras actividades.
+
+- Financiación.
+
+- Gasto.
+
+Adicionalmente, el conjunto de datos se enriqueció con seis variables derivadas, obtenidas mediante el procesamiento de la información original y la incorporación de fuentes estadísticas complementarias:
+
+- Población por comunidad autónoma y año, utilizada para calcular indicadores por 1.000 habitantes y otras tasas normalizadas.
+
+- Índice de Precios de Consumo (IPC), con base 100 en 2010, obtenido del Instituto Nacional de Estadística (INE), empleado para deflactar las variables monetarias.
+
+- Consultas telemáticas por 1.000 habitantes.
+
+- Gasto sanitario total real per cápita.
+
+- Gasto en personal real per cápita.
+
+- Gasto en farmacia real per cápita.
+
+El *Anexo I* recoge el diccionario de datos completo utilizado en el proyecto, incluyendo la definición, origen y tratamiento aplicado a cada una de las variables.
+
+## Selección de variables
+
+Antes de proceder al análisis econométrico se llevó a cabo una auditoría exploratoria de todas las variables inicialmente seleccionadas. El objetivo de esta fase fue verificar que los indicadores presentaban un grado suficiente de comparabilidad temporal y que permitían responder de forma adecuada a la pregunta de investigación planteada. Dado que el estudio pretende identificar posibles cambios estructurales asociados a la pandemia de COVID-19, resulta imprescindible asegurar que las variaciones observadas en las series reflejan cambios reales en la organización asistencial y no modificaciones derivadas de alteraciones metodológicas, cambios en la definición de los indicadores o problemas de calidad de los datos.
+
+Para garantizar la homogeneidad del proceso de evaluación, todas las variables fueron sometidas al mismo protocolo de análisis exploratorio. Este procedimiento permitió estudiar tanto su evolución agregada a nivel nacional como la existencia de comportamientos diferenciados entre comunidades autónomas, así como detectar posibles anomalías, discontinuidades o cambios bruscos incompatibles con una interpretación longitudinal.
+
+Concretamente, para cada una de las variables se realizaron los siguientes análisis:
+
+- *Evolución nacional ponderada*, representando la trayectoria anual del indicador para el conjunto del Sistema Nacional de Salud con el fin de identificar tendencias de largo plazo, posibles rupturas estructurales y el impacto inicial de la pandemia.
+
+- *Evolución por comunidad autónoma*, mediante la representación simultánea de las comunidades y ciudades autónomas, con el objetivo de evaluar la heterogeneidad territorial de cada indicador, identificar patrones comunes y detectar posibles diferencias en la intensidad o persistencia de los cambios observados.
+
+- *Distribución anual mediante diagramas de caja (boxplots)*, que permitieron analizar la variabilidad entre comunidades autónomas en cada ejercicio, identificar valores atípicos y evaluar si la dispersión territorial se modificó tras el inicio de la pandemia.
+
+Este análisis exploratorio no tuvo como finalidad contrastar hipótesis estadísticas, sino realizar una evaluación preliminar de la idoneidad de cada indicador para su utilización posterior en los modelos econométricos. A partir de la evidencia obtenida, la decisión de mantener o excluir cada variable se fundamentó en cuatro criterios principales:
+
+- *Continuidad temporal*, verificando que la serie estuviera disponible de forma consistente durante todo el período de estudio (2010–2024).
+
+- *Comparabilidad metodológica*, descartando aquellos indicadores cuya definición, forma de registro o procedimiento de cálculo hubieran experimentado cambios que impidieran realizar comparaciones homogéneas a lo largo del tiempo.
+
+- *Coherencia con la pregunta de investigación*, priorizando los indicadores directamente relacionados con la organización asistencial hospitalaria y excluyendo aquellos cuya relación con los objetivos del estudio resultaba secundaria o indirecta.
+
+- *Capacidad para identificar posibles cambios estructurales*, valorando si el comportamiento de la serie permitía distinguir entre tendencias preexistentes, alteraciones transitorias asociadas a la pandemia y posibles transformaciones persistentes de la organización asistencial.
+
+La aplicación sistemática de este protocolo permitió seleccionar el conjunto definitivo de indicadores utilizado en el análisis econométrico, garantizando su comparabilidad temporal, su coherencia con la pregunta de investigación y la solidez metodológica de las conclusiones obtenidas.
+
+## Auditoría exploratoria de las variables
+
+Tal y como se ha definido en el punto anterior, el primer filtro a aplicar sería el seleccionar aquellas variables que estén relacionadas con la medición de la organización asistencial hospitalaria del Sistema Nacional de Salud.
+
+```{r}
+
+variables_h1 <- c("dotacion_reserva_estrategica", "consultas_telematicas_1000hab", "dotacion_puestos_hospital_dia_total_1000h", "hospitalizacion_altas_1000h", "hospitalizacion_estancia_media", "hospitalizacion_indica_ocupacion", "quirurgica_tasa_ambulatorizacion", "consultas_consultas_1000h", "urgencias_frecuentacion_1000h")
+
+datos_diccionario_hipotesis <- datos_diccionario %>%
+  filter(ID_Variable %in% variables_h1)
+
+tabla_variables_h1 <- formatear_tabla(
+  datos_diccionario_hipotesis,
+  titulo = "Tabla 1. Variables hipótesis de investigación",
+  subtitulo = "Primeras variables seleccionadas para el estudio a partir del criterio de coherencia teórica",
+  fuente = ""
+)
+
+```
+
+Tras las representaciones gráficas, se incluye una tabla especificando para cada variable si es comparable en toda la serie, la evidencia que sustenta esta afirmación, y la decisión adoptada (incluir o excluir del análisis final).
+
+## Variables descartadas
+
+### Reserva estratégica de productos sanitarios
+
+```{r}
+
+plot_nacional_ponderado (datos, "dotacion_reserva_estrategica")
+
+```
+
+```{r}
+
+plot_ccaa(
+  datos,
+  "dotacion_reserva_estrategica"
+)
+
+```
+
+```{r}
+
+plot_boxplot_anual(
+  datos,
+  "dotacion_reserva_estrategica"
+)
+
+```
+
+La variable presenta valor cero en todas las CCAA hasta 2020 y aparece únicamente a partir de 2021, coincidiendo con cambios regulatorios y organizativos derivados de la pandemia. No existe continuidad temporal suficiente para compararla con el período pre-COVID.
+
+La pandemia impulsó la creación de nuevos mecanismos de preparación y respuesta ante emergencias sanitarias, entre ellos las reservas estratégicas de productos sanitarios. Esta variable no se incorpora al análisis econométrico principal debido a su falta de comparabilidad temporal, pero constituye un ejemplo ilustrativo de las transformaciones institucionales surgidas tras la COVID-19.
+
+### Consultas telemáticas por 1000 habitantes
+
+```{r}
+
+plot_nacional_ponderado (datos, "consultas_telematicas_1000hab")
+
+```
+
+```{r}
+
+plot_ccaa(
+  datos,
+  "consultas_telematicas_1000hab"
+)
+
+```
+
+```{r}
+
+plot_boxplot_anual(
+  datos,
+  "consultas_telematicas_1000hab"
+)
+
+```
+
+La variable presenta valores nulos hasta 2020 y aparece únicamente a partir de 2021. El manual metodológico del SIAE indica expresamente que «en la actualidad se incluyen también las consultas telemáticas», lo que evidencia un cambio en el sistema de registro. No es posible distinguir entre el aumento real de la actividad y el efecto derivado de la incorporación de la variable al cuestionario.
+
+Aunque la actividad telemática aumentó claramente durante la pandemia, la serie del SIAE no permite cuantificar ese efecto mediante un análisis longitudinal, ya que la propia definición y registro de la variable cambió durante el período de estudio. De cualquier manera, cabe indicar que la pandemia impulsó la generalización de las consultas telemáticas en el sistema hospitalario español
+
+## Variables finalmente seleccionadas
+
+### Total Puestos Hospital de Día por 100.000 hab
+
+```{r}
+
+plot_nacional_ponderado (datos, "dotacion_puestos_hospital_dia_total_1000h")
+
+```
+
+```{r}
+
+plot_ccaa(
+  datos,
+  "dotacion_puestos_hospital_dia_total_1000h"
+)
+
+```
+
+```{r}
+
+plot_boxplot_anual(
+  datos,
+  "dotacion_puestos_hospital_dia_total_1000h"
+)
+
+```
+
+Evolución continua y creciente durante todo el período. No se observan discontinuidades metodológicas. La serie muestra una tendencia ascendente previa a la pandemia y un incremento adicional a partir de 2021 compatible con la consolidación de modelos asistenciales ambulatorios. 
+
+La expansión del hospital de día era una tendencia previa que parece consolidarse e intensificarse ligeramente tras la pandemia. Se aprecia una respuesta variable por comunidad autónoma tras la pandemia. Esta variable podría empezar a sugerir que la pandemia aceleró o consolidó procesos de modernización que ya estaban en marcha. Esto podría encajar con la aproximación a una estrategia event study.
+
+### Altas por 1.000 hab
+
+```{r}
+
+plot_nacional_ponderado (datos, "hospitalizacion_altas_1000h")
+
+```
+
+```{r}
+
+plot_ccaa(
+  datos,
+  "hospitalizacion_altas_1000h"
+)
+
+```
+
+```{r}
+
+plot_boxplot_anual(
+  datos,
+  "hospitalizacion_altas_1000h"
+)
+
+```
+
+Serie estable durante el período pre-COVID, con una caída muy acusada en 2020 y una recuperación gradual en los años posteriores. No se observan indicios de cambios metodológicos; el patrón es plenamente consistente con el impacto de la pandemia sobre la actividad hospitalaria.
+
+La serie es muy estable en el período pre-COVID, con un shockl enorme en 2020. En el período posterior hay recuperación aunque lenta y progrsiva. En 2024 no se ha alcanzado todavía el nivel previo. Esta variable es compatible con el hecho de que durante la pandemia se suspendieron cirugías programadas, disminuyó la actividad no urgente y muchos hospitales quedaron prácticamente dedicados al COVID. La elección de esta variable puede ser discutible, ya que se puede entender como una variable de actividad, pero se incluye considerando como una variable de resultado intermedio, que refleja cómo la reorganización del sistema afectó a la actividad hospitalaria. Se podrían clasificar las variables en dos tipos: variables estructurales (cambian lentamente) y variables de actividad (responden inmediatamente al shock)
+
+### Estancia Media
+
+```{r}
+
+plot_nacional_ponderado (datos, "hospitalizacion_estancia_media")
+
+```
+
+```{r}
+
+plot_ccaa(
+  datos,
+  "hospitalizacion_estancia_media"
+)
+
+```
+
+```{r}
+
+plot_boxplot_anual(
+  datos,
+  "hospitalizacion_estancia_media"
+)
+
+```
+Evolución continua y consistente durante todo el período. Se observa una tendencia descendente previa a la pandemia, una interrupción puntual en 2020 con aumento de la estancia media y un retorno posterior hacia la tendencia anterior. No se identifican indicios de cambios metodológicos.
+
+Desde el comienzo de la serie hasta el 2019 se observa una disminución consecuencia de una tendencia conocida en los sistemas sanitarios: mayor eficiencia hospitalaria, mejores técnicas quirúrgicas, evolución hacia la cirugía mayor ambulatoria, etc. Por lo tanto, la reducción de la estancia media ya era un proceso estructural antes de la COVID. Sin embargo, en 2020 aumenta la estancia media, ya que se ingresaban pacientes más graves, las estancias eran más largas por la propia naturaleza de la enfermedad y hubo una descenso de la actividad quirúrgica programada. Posteriormente, en el período 2021-2014 vuelve a descender aproximadamente hasta el nivel previo, por lo que podríamos estar ante un efecto transitorio. Esta variable apoya la idea de que el COVID alteró los procesos operativos, pero no fue necesariamente una transformación permanente. Algunas variables reaccionaron como respuesta de emergencia y después volvieron a su trayectoria anterior, mientras que otras (las de recursos humanos y financieras, que están fuera del ámbito de este trabajo pero que sí se han analizado, muestran un cabmio que sí parece haberse consolidado). Empieza a tomar forma la estrategia event study: el modelo será el que determine si esos cambios son estadísticamente atribuibles a la pandemia y si fueron transitorios o persistentes.
+
+
+### Indice de Ocupación
+
+```{r}
+
+plot_nacional_ponderado (datos, "hospitalizacion_indica_ocupacion")
+
+```
+
+```{r}
+
+plot_ccaa(
+  datos,
+  "hospitalizacion_indica_ocupacion"
+)
+
+```
+
+```{r}
+
+plot_boxplot_anual(
+  datos,
+  "hospitalizacion_indica_ocupacion"
+)
+
+```
+
+Serie estable durante el período pre-COVID, con una caída muy acusada en 2020 y una recuperación progresiva en los años posteriores. El patrón es coherente con el impacto de la pandemia sobre la actividad hospitalaria y no muestra indicios de cambios metodológicos.
+
+Antes de la pandemia, el índice de ocupación estaba estabilizado alrededor del 78%. En 2020 tenemos un shock enorme, cayendo en 8 puntos. Esta idea puede ser contradictoria con la idea intuitiva de que los hospitales estaban llenos, pero esta variable mide el porcentaje de ocupación de todoas las camas disponibles a lo largo del año. En este sentido, durante el año 2020 ocurrieron varias cosas al mismo tiempo: se suspendieron gran parte de las intervenciones programadas; disminuyeron muchos ingresos no urgentes;
+algunos pacientes evitaron acudir al hospital; se habilitaron camas adicionales para hacer frente a la pandemia. Esto es, aunque algunas unidades estaban saturadas (como las UCI) el promedio anual del conjunto pudo disminuir. Con respecto a la recuperación, nos encontramos ante un efecto parecido a las altas: hay recuperación pero lenta, por lo que el efecto es importante y tiene una persistencia parcial. Aunque esto no refleja un cambio estructural permanente.
+
+En este punto, podríamos considerar dos tipos de variables (capítulo de resultados):
+
+- Variables estrucuturales: ¿Cambió la forma de prestar asistencia? Hospital de día, CMA...
+
+- Variables de funcionamiento del sistema: ¿Cómo afectó la pandemia al funcionamiento ordinario de los hospitales? Altas, estancia media, índice de ocupación, urgencias.
+
+### Tasa de ambulatorización: % Intervenciones CMA
+
+```{r}
+
+plot_nacional_ponderado (datos, "quirurgica_tasa_ambulatorizacion")
+
+```
+
+```{r}
+
+plot_ccaa(
+  datos,
+  "quirurgica_tasa_ambulatorizacion"
+)
+
+```
+
+```{r}
+
+plot_boxplot_anual(
+  datos,
+  "quirurgica_tasa_ambulatorizacion"
+)
+
+```
+
+Evolución continua y creciente durante todo el período, con una reducción puntual en 2020 y una recuperación posterior que supera los niveles previos a la pandemia. No se observan indicios de cambios metodológicos. El patrón es compatible con la consolidación de modelos quirúrgicos más orientados a la cirugía mayor ambulatoria.
+
+Variable muy relacionada con cómo se presta la asistencia quirúrgica. Entre 2010 y 2015 tenemos un gran crecimiento: la cirugía mayor ambulatoria (CMA) ya estaba expandiéndose mucho antes del COVID. Durante el período 2015-2019 la tasa prácticamente se estabiliza. En el año de la pandemia, el valor disminuye bastante, ya que durante la pandemia se suspendió gran parte de la cirugía programada y consecuentemente muchas intervenciones ambulatorias dejaron de realizarse, ya que los hospitales priorizaron actividad urgente. Durante el período 2021-2024 no vuelve simplemente al nivel anterior, sino que lo supera claramente. Podríamos interpretar que la pandemia aceleró la adopción de modelos quirúrgicos más ambulatorios. Podríamos especular que la pandemia interrumpió temporalmente una tendencia creciente que posteriormente se retomó con mayor intensidad. La pandemia actuó como catalizador de procesos de transformación organizativa que ya estaban en marcha: interrumpe temporalmente algunas tendencias; acelera otras; y, en algunos casos, consolida un nuevo nivel de actividad. El sistema sanitario ya estaba inmerso en un proceso de modernización y que la COVID pudo haber actuado como un acelerador, más que como el origen de esa transformación. Esa es una hipótesis muy compatible con un event study.
+
+
+### Frecuentación: Nº Consultas por 1.000 hab
+
+```{r}
+
+plot_nacional_ponderado (datos, "consultas_consultas_1000h")
+
+```
+
+```{r}
+
+plot_ccaa(
+  datos,
+  "consultas_consultas_1000h"
+)
+
+```
+
+```{r}
+
+plot_boxplot_anual(
+  datos,
+  "consultas_consultas_1000h"
+)
+
+```
+
+Evolución continua durante todo el período. Se observa una caída acusada en 2020, seguida de una recuperación que supera los niveles previos a la pandemia. No se identifican indicios de cambios metodológicos en la serie agregada de consultas totales.
+
+Tras la fuerte reducción observada en 2020, el volumen de consultas externas experimentó una recuperación que superó los niveles previos a la pandemia. Este comportamiento puede reflejar la combinación de varios factores, entre ellos la recuperación de la actividad aplazada, el incremento del seguimiento clínico de determinados pacientes y la incorporación de nuevas modalidades asistenciales como la consulta telemática.
+
+### Urgencias: Frecuentación por 1.000 hab
+
+```{r}
+
+plot_nacional_ponderado (datos, "urgencias_frecuentacion_1000h")
+
+```
+
+```{r}
+
+plot_ccaa(
+  datos,
+  "urgencias_frecuentacion_1000h"
+)
+
+```
+
+```{r}
+
+plot_boxplot_anual(
+  datos,
+  "urgencias_frecuentacion_1000h"
+)
+
+```
+
+Evolución continua durante todo el período. La serie presenta una fuerte caída en 2020 y una recuperación posterior que supera los niveles previos a la pandemia. No se observan indicios de cambios metodológicos.
+
+Entre 2010 y 2019 hay una tendencia creciente. La utilización de urgencias ya iba aumentando antes de la pandemia. El efecto del shock de 2020 es muy grande. Durante la pandemia mucha población evitó acudir al hospital por miedo al contagio, disminuyeron las urgencias por traumatismos (confinamiento), descendieron muchas patologías transmisibles por las medidas de distanciamiento y sólo acudían los casos realmente graves. Se entiende que el comportamiento de la variable es perfectamente coherente. Con respecto a la recuperación, aquí ocurre algo muy interesante. Supera claramente el nivel previo y en 2024 sigue creciendo.
+
+Volvemos a tener dos tipos de variables: 
+
+1.- Transformaciones de capacidad organizativa
+
+- Hospital de día.
+- Tasa de ambulatorización (CMA).
+
+Ya venían creciendo y la pandemia parece haber reforzado esa evolución.
+
+2.-  Variables de funcionamiento asistencial
+
+- Altas.
+- Consultas.
+- Urgencias.
+- Estancia media.
+Índice de ocupación.
+
+Todas presentan un shock muy marcado en 2020 y una recuperación posterior. Sin embargo, no todas muestran el mismo comportamiento tras la pandemia: algunas vuelven aproximadamente a su trayectoria anterior (como la estancia media), mientras que otras superan claramente los niveles pre-COVID (consultas y urgencias).
+
+La pandemia actuó en la organización asistencial principalmente como acelerador o catalizador de procesos ya iniciados y como origen de importantes alteraciones transitorias en la actividad hospitalaria.
+
+## Resumen de selección de variables
+
+```{r}
+
+auditoria_variables <- tibble::tribble(
+  ~Variable, ~Comparable, ~Evidencia, ~Decisión, ~Observaciones,
+
+  "dotacion_reserva_estrategica",
+  "No",
+  "La variable presenta valor cero hasta 2020 y sólo aparece desde 2021.",
+  "Excluir del análisis principal",
+  "No existe continuidad temporal suficiente para compararla con el período pre-COVID.",
+  
+  "consultas_telematicas_1000hab",
+  "No",
+  "La variable sólo aparece desde 2021 y cambia el criterio de registro.",
+  "Excluir del análisis principal",
+  "No es posible distinguir entre un cambio real y un cambio metodológico.",
+
+  "dotacion_puestos_hospital_dia_total_1000h",
+  "Sí",
+  "Serie continua y creciente durante todo el período, sin discontinuidades metodológicas.",
+  "Mantener",
+  "La expansión del hospital de día era una tendencia previa que podría haberse consolidado tras la pandemia.",
+
+  "hospitalizacion_altas_1000h",
+  "Sí",
+  "Serie estable antes de la pandemia, con fuerte caída en 2020 y recuperación gradual.",
+  "Mantener",
+  "Refleja la reorganización de la actividad hospitalaria durante la pandemia.",
+
+  "hospitalizacion_estancia_media",
+  "Sí",
+  "Tendencia descendente previa, incremento puntual en 2020 y retorno posterior.",
+  "Mantener",
+  "Compatible con un efecto transitorio asociado a la mayor gravedad de los pacientes ingresados.",
+
+  "hospitalizacion_indice_ocupacion",
+  "Sí",
+  "Serie estable antes de 2020, fuerte descenso durante la pandemia y recuperación parcial.",
+  "Mantener",
+  "Presenta persistencia parcial del efecto tras la pandemia.",
+
+  "quirurgica_tasa_ambulatorizacion",
+  "Sí",
+  "Serie creciente con interrupción en 2020 y recuperación posterior.",
+  "Mantener",
+  "La pandemia interrumpió temporalmente una tendencia previa de expansión de la cirugía ambulatoria.",
+
+  "consultas_consultas_1000h",
+  "Sí",
+  "Caída acusada en 2020 y recuperación posterior.",
+  "Mantener",
+  "La recuperación supera los niveles previos y refleja la normalización de la actividad asistencial.",
+
+  "urgencias_frecuentacion_1000h",
+  "Sí",
+  "Serie continua con fuerte caída en 2020 y recuperación posterior.",
+  "Mantener",
+  "La utilización de urgencias recupera la tendencia creciente previa a la pandemia."
+
+)
+
+formatear_tabla(
+  auditoria_variables,
+  titulo = "Tabla 2. Auditoría de los indicadores seleccionados",
+  subtitulo = "Evaluación de la comparabilidad temporal y decisión de inclusión en el análisis",
+  fuente = "Fuente: elaboración propia a partir del Sistema de Información de Atención Especializada (SIAE)."
+)
+
+```
+
+# Metodología
+
+## Diseño del estudio
+
+El presente trabajo se plantea como una investigación cuantitativa de carácter observacional basada en el análisis longitudinal de datos de panel. El objetivo es evaluar la evolución de diversos indicadores de organización asistencial en los hospitales públicos españoles antes y después de la pandemia de COVID-19, con el fin de determinar si los cambios observados constituyen alteraciones transitorias o si reflejan transformaciones estructurales persistentes en el funcionamiento del sistema hospitalario.
+
+La unidad de análisis está constituida por las dieciocho comunidades y ciudades autónomas españolas, consideradas como unidades territoriales independientes de observación. Esta elección responde a la organización descentralizada del Sistema Nacional de Salud, en el que las competencias de planificación, gestión y provisión de la asistencia sanitaria recaen fundamentalmente en las administraciones autonómicas. En consecuencia, aunque la pandemia representó un shock común para todo el país, la evolución de los distintos indicadores puede diferir entre territorios debido a sus características organizativas, asistenciales y de gestión.
+
+La información utilizada procede del Sistema de Información de Atención Especializada (SIAE) del Ministerio de Sanidad y comprende el período 2010–2024. Este intervalo temporal permite disponer de una década previa a la pandemia, suficiente para caracterizar la evolución tendencial de los indicadores antes de la irrupción de la COVID-19, así como de cinco años posteriores al inicio de la crisis sanitaria, lo que facilita analizar tanto el impacto inmediato como la recuperación y la posible persistencia de los cambios observados.
+
+A partir del conjunto de indicadores disponibles en el SIAE se llevó a cabo un proceso de selección y auditoría exploratoria, descrito en el capítulo anterior, con el objetivo de identificar aquellos indicadores que presentaban continuidad temporal, comparabilidad metodológica y una relación directa con la organización asistencial hospitalaria. Como resultado de este proceso, el análisis se centra en siete variables representativas de diferentes dimensiones de la actividad hospitalaria: dotación de puestos de hospital de día, altas hospitalarias, estancia media, índice de ocupación, tasa de cirugía mayor ambulatoria, consultas y frecuentación de urgencias.
+
+El diseño del estudio se orienta a responder una cuestión específica: determinar si la pandemia produjo una transformación organizativa de los hospitales públicos españoles o si, por el contrario, los cambios observados responden fundamentalmente a tendencias de evolución ya existentes antes de 2020. Para ello, el análisis combina una fase descriptiva, destinada a caracterizar la evolución temporal de los indicadores, con una fase inferencial basada en modelos de datos de panel que permiten aislar el efecto asociado a la pandemia una vez consideradas las diferencias estructurales entre comunidades autónomas y la tendencia temporal previa de cada indicador.
+
+## Estrategia econométrica
+
+La estrategia econométrica adoptada en este trabajo responde directamente a la pregunta de investigación planteada. El objetivo no consiste únicamente en identificar si la pandemia de COVID-19 produjo cambios en la organización asistencial de los hospitales públicos españoles, sino en determinar si dichos cambios representaron transformaciones estructurales o si, por el contrario, constituyeron alteraciones transitorias sobre tendencias organizativas que ya se encontraban en marcha antes de 2020.
+
+Esta cuestión condiciona la elección del modelo econométrico. Una especificación basada exclusivamente en una variable indicadora para el período posterior a la pandemia (Post-COVID) permitiría estimar un efecto medio asociado a la COVID-19, pero asumiría implícitamente que dicho efecto es constante durante todo el período 2020–2024. Esta hipótesis resulta excesivamente restrictiva, ya que el análisis exploratorio realizado muestra que la evolución de los distintos indicadores presenta comportamientos muy diferentes tras el inicio de la pandemia: algunas variables experimentan un fuerte impacto inicial y recuperan posteriormente su trayectoria previa, mientras que otras mantienen cambios persistentes o continúan siguiendo tendencias ya existentes antes de la crisis sanitaria.
+
+Por otra parte, la inclusión de una tendencia temporal constituye un elemento esencial del modelo. El análisis descriptivo evidencia que varios indicadores de organización asistencial ya mostraban una evolución sistemática antes de 2020, reflejando procesos de transformación organizativa independientes de la pandemia. En consecuencia, atribuir cualquier cambio observado tras 2020 exclusivamente a la COVID-19 podría conducir a interpretaciones erróneas, al confundir el efecto de la pandemia con la prolongación de tendencias preexistentes. La incorporación explícita de una tendencia temporal permite separar ambos fenómenos y estimar el efecto adicional asociado a la pandemia una vez descontada la evolución estructural previa de cada indicador.
+
+El estudio utiliza un modelo de datos de panel con efectos fijos por comunidad autónoma. Esta especificación permite controlar todas aquellas características estructurales, permanentes e inobservables que diferencian a los distintos sistemas sanitarios autonómicos, tales como su organización, estructura demográfica, dotación histórica de recursos o modelo asistencial. De este modo, la estimación no compara directamente unas comunidades autónomas con otras, sino que analiza cómo evoluciona cada territorio respecto a su propia trayectoria histórica.
+
+Con el fin de capturar la naturaleza dinámica del fenómeno analizado, el efecto de la pandemia no se representa mediante una única variable dicotómica, sino mediante un conjunto de variables indicadoras correspondientes a cada uno de los años comprendidos entre 2020 y 2024, utilizando 2019 como categoría de referencia. Esta especificación, inspirada en la lógica de los modelos event study, permite estimar de forma independiente el comportamiento de cada indicador tras el inicio de la pandemia y reconstruir la evolución temporal del efecto observado. Aunque la formulación recuerda a los diseños clásicos de event study, debe señalarse que el presente trabajo no constituye un event study en sentido estricto, ya que la pandemia afectó simultáneamente a todas las comunidades autónomas y, por tanto, no existe un grupo de control ni una adopción escalonada del tratamiento. En este contexto, las variables temporales no identifican diferencias entre unidades tratadas y no tratadas, sino desviaciones respecto a la trayectoria que seguían los indicadores antes del inicio de la pandemia.
+
+Finalmente, con el objetivo de evaluar la robustez de los resultados, además del modelo principal se estimará una especificación alternativa que excluye la tendencia temporal. La comparación entre ambas estimaciones permitirá valorar hasta qué punto las conclusiones dependen de considerar explícitamente la evolución previa de los indicadores y comprobar si determinados efectos atribuidos inicialmente a la pandemia desaparecen una vez controladas las tendencias organizativas existentes antes de 2020. Este análisis de robustez resulta especialmente relevante en un contexto como el estudiado, en el que numerosas transformaciones organizativas ya se encontraban en marcha con anterioridad a la crisis sanitaria.
+
+En conjunto, esta estrategia econométrica permite distinguir tres situaciones potencialmente diferentes: indicadores cuya evolución apenas se modifica tras la pandemia y continúan siguiendo su tendencia previa; indicadores que experimentan alteraciones transitorias durante los primeros años de la crisis sanitaria y posteriormente recuperan su trayectoria original; e indicadores cuya evolución muestra desviaciones persistentes compatibles con la consolidación de cambios estructurales en la organización asistencial hospitalaria. Precisamente esta capacidad para diferenciar entre continuidad, interrupción temporal y transformación permanente constituye la principal fortaleza del enfoque adoptado y la razón por la que se considera la estrategia más adecuada para responder a la pregunta de investigación planteada.
+
+## Especificación del modelo
+
+Con el fin de analizar la evolución temporal de cada uno de los indicadores de organización asistencial, se estimará un modelo de datos de panel con efectos fijos por comunidad autónoma y una especificación dinámica del período posterior al inicio de la pandemia. El modelo incorpora una tendencia temporal común para recoger la evolución estructural previa de cada indicador y un conjunto de variables indicadoras que permiten estimar de forma independiente el efecto correspondiente a cada uno de los años comprendidos entre 2020 y 2024.
+
+La especificación general del modelo es la siguiente:
+
+$$
+Y_{it} = \alpha_i + \delta t +
+\sum_{k=2020}^{2024} \beta_k D_{kt} + \varepsilon_{it}
+$$
+
+donde:
+
+- $$
+Y_{it}
+$$
+
+ representa el valor del indicador analizado para la comunidad autónoma i en el año t.
+
+- $$
+\alpha_i
+$$
+
+ corresponde al efecto fijo específico de cada comunidad autónoma y recoge todas aquellas características estructurales e invariables en el tiempo que pueden influir sobre el nivel del indicador, tales como el modelo organizativo, la estructura demográfica, la capacidad asistencial o cualquier otro factor permanente no observado.
+
+- $$
+\delta t
+$$
+
+ representa una tendencia temporal lineal común a todas las comunidades autónomas, cuyo objetivo es capturar la evolución estructural del indicador antes del inicio de la pandemia y evitar atribuir a la COVID-19 cambios que ya formaban parte de la trayectoria previa del sistema sanitario.
+
+- $$
+D_{kt}
+$$
+
+ son variables indicadoras para los años 2020, 2021, 2022, 2023 y 2024, tomando el valor uno cuando la observación corresponde al año k y cero en caso contrario. El año 2019 se utiliza como categoría de referencia, al ser el último ejercicio completo anterior a la pandemia.
+
+- $$
+\beta_k
+$$
+
+ mide la desviación experimentada por el indicador en cada uno de los años posteriores al inicio de la pandemia respecto al nivel esperado según la tendencia observada antes de 2020. En consecuencia, estos coeficientes constituyen la principal magnitud de interés del estudio, ya que permiten evaluar si la evolución posterior a la pandemia difiere significativamente de la trayectoria que seguía el indicador con anterioridad.
+
+- Finalmente, $$
+\varepsilon_{it}
+$$
+
+ representa el término de error aleatorio.
+
+La estimación se realiza de forma independiente para cada uno de los siete indicadores seleccionados, ya que el objetivo del trabajo no consiste en explicar simultáneamente unas variables mediante otras, sino analizar cómo evoluciona cada dimensión de la organización asistencial tras el inicio de la pandemia. De este modo, cada modelo proporciona una estimación específica del comportamiento temporal del indicador correspondiente, permitiendo posteriormente comparar los patrones observados entre las distintas dimensiones analizadas.
+
+Dado que las observaciones pertenecientes a una misma comunidad autónoma pueden presentar correlación serial a lo largo del tiempo, los errores estándar se estiman agrupando (clustered standard errors) por comunidad autónoma. Esta especificación proporciona inferencias más robustas frente a la posible existencia de heterocedasticidad y autocorrelación intragrupo, circunstancia habitual en modelos de datos de panel con series temporales relativamente cortas.
+
+Como análisis de robustez, para cada variable se estimará una segunda especificación que excluye la tendencia temporal. La comparación entre ambos modelos permitirá evaluar hasta qué punto la consideración explícita de la evolución previa modifica la estimación del efecto atribuido a la pandemia. Si los coeficientes asociados a los años posteriores a 2020 se reducen o pierden significación al incorporar la tendencia, ello indicará que parte de los cambios inicialmente atribuidos a la COVID-19 responden, en realidad, a procesos de transformación organizativa ya presentes antes de la crisis sanitaria. Por el contrario, si los resultados permanecen esencialmente inalterados, podrá interpretarse que la pandemia produjo desviaciones respecto a la trayectoria esperada compatibles con cambios estructurales en la organización asistencial.
+
+En consecuencia, la interpretación conjunta de la tendencia temporal y de los coeficientes dinámicos permitirá distinguir tres escenarios posibles para cada indicador: continuidad de la trayectoria previa, alteraciones transitorias asociadas al impacto inicial de la pandemia o modificaciones persistentes compatibles con una transformación organizativa del sistema hospitalario.
+
+# Resultados
+
+## Análisis descriptivo
+
+Vamos a realizar un análisis descriptivo de las variables seleccionadas por los siguientes motivos:
+
+- Describir los datos: conocer el panel, analizando valores medios, desviaciones, etc.
+
+- Detectar posibles problemas, como variables con muy poca variabilidad (y consecuentemente difíciles de explicar econométricamente), valores extremos (outliers) o rangos inesperados, posibles errores que hayan pasado desapercibidos.
+
+El objetivo será llevar a cabo los estadísticos descriptivos globales del panel (270 observaciones por variable). No pretendemos analizar su evolución temporal porque eso ya se ha realizaro en el apartado de Datos
+
+```{r}
+
+# Variables a incluir
+variables <- c(
+  "dotacion_puestos_hospital_dia_total_1000h",
+  "hospitalizacion_altas_1000h",
+  "hospitalizacion_estancia_media",
+  "hospitalizacion_indica_ocupacion",
+  "quirurgica_tasa_ambulatorizacion",
+  "consultas_consultas_1000h",
+  "urgencias_frecuentacion_1000h"
+)
+
+# Tabla de estadísticos descriptivos
+estadisticos <- map_dfr(variables, function(v){
+
+  x <- datos[[v]]
+
+  tibble(
+    Variable = v,
+    N = sum(!is.na(x)),
+    Media = mean(x, na.rm = TRUE),
+    `Desv. Típica` = sd(x, na.rm = TRUE),
+    Mínimo = min(x, na.rm = TRUE),
+    Máximo = max(x, na.rm = TRUE),
+    `Coef. Variación` = sd(x, na.rm = TRUE) / mean(x, na.rm = TRUE)
+  )
+
+})
+
+estadisticos <- estadisticos %>%
+  mutate(
+    across(where(is.numeric), ~round(., 2))
+  )
+
+formatear_tabla(estadisticos, "Principales estadísticos descriptivos de las variables seleccionadas")
+
+```
+
+La Tabla X resume los principales estadísticos descriptivos de las variables incluidas en el análisis. El panel está compuesto por un total de 270 observaciones, correspondientes a las dieciocho comunidades y ciudades autónomas españolas durante el período 2010–2024, sin valores perdidos en ninguna de las variables finalmente seleccionadas.
+
+En términos generales, los indicadores presentan una variabilidad moderada, reflejo tanto de las diferencias existentes entre comunidades autónomas como de la evolución experimentada por el sistema hospitalario durante el período analizado. Los coeficientes de variación oscilan entre 0,09 y 0,38, siendo la dotación de puestos de hospital de día por 1.000 habitantes la variable con mayor dispersión relativa, mientras que el índice de ocupación hospitalaria muestra el comportamiento más estable.
+
+Las variables relacionadas con la actividad asistencial —altas hospitalarias, consultas y frecuentación de urgencias— presentan niveles de variabilidad similares, con coeficientes de variación comprendidos entre 0,16 y 0,20, lo que sugiere una heterogeneidad moderada entre comunidades y a lo largo del tiempo. Por su parte, la estancia media y el índice de ocupación muestran una menor dispersión, coherente con la relativa estabilidad de estos indicadores estructurales.
+
+En conjunto, los estadísticos descriptivos ponen de manifiesto que las variables analizadas presentan suficiente variabilidad para abordar el estudio de su evolución temporal, si bien estos resultados constituyen únicamente una primera aproximación descriptiva. En los apartados siguientes se analizará con mayor detalle dicha evolución mediante representaciones gráficas y, posteriormente, a través de modelos econométricos que permitan aislar el efecto asociado a la pandemia de COVID-19.
+
+
+## Correlaciones
+
+Como paso previo al análisis econométrico se evaluó el grado de asociación lineal entre las variables finalmente seleccionadas mediante la matriz de correlaciones de Pearson (Tabla X). El objetivo de este análisis fue identificar posibles problemas de redundancia entre indicadores que pudieran estar describiendo un mismo fenómeno organizativo y valorar, en consecuencia, la necesidad de reducir el conjunto de variables analizadas.
+
+Los resultados muestran que, en términos generales, las correlaciones entre variables son de magnitud baja o moderada, lo que indica que cada indicador aporta información complementaria sobre distintas dimensiones de la organización asistencial hospitalaria. La mayor parte de los coeficientes se sitúan por debajo de 0,50 en valor absoluto, lo que sugiere la ausencia de relaciones lineales suficientemente elevadas como para considerar que dos variables estén midiendo esencialmente el mismo fenómeno.
+
+La asociación positiva más elevada se observa entre el número de consultas por 1.000 habitantes y las altas hospitalarias por 1.000 habitantes (r = 0,60), resultado esperable al tratarse de dos indicadores relacionados con el volumen global de actividad asistencial. Asimismo, se aprecia una correlación moderada entre la estancia media y el índice de ocupación hospitalaria (r = 0,49), coherente con la relación existente entre la duración de los ingresos y la utilización de la capacidad hospitalaria.
+
+Por el contrario, algunas variables presentan correlaciones negativas de intensidad moderada, como la existente entre la estancia media y la frecuentación de urgencias (r = -0,41), lo que sugiere la presencia de dinámicas organizativas diferenciadas entre ambos indicadores, aunque sin implicar una relación de sustitución directa.
+
+En conjunto, la matriz de correlaciones no pone de manifiesto problemas de redundancia o colinealidad que justifiquen la eliminación de alguno de los indicadores seleccionados. Por el contrario, los resultados respaldan la decisión de mantener las siete variables en el análisis, al aportar cada una de ellas información específica sobre distintos aspectos de la organización asistencial hospitalaria.
+
+Debe señalarse, además, que el objetivo del presente estudio no consiste en estimar un modelo multivariante con todas las variables como regresores simultáneos, sino en analizar la evolución temporal de cada indicador mediante modelos independientes de datos de panel. En consecuencia, la matriz de correlaciones se emplea exclusivamente como herramienta exploratoria para evaluar la posible redundancia entre variables y no como un diagnóstico de multicolinealidad en los modelos econométricos.
+
+```{r}
+
+# Matriz de correlaciones de Pearson
+matriz_cor <- datos %>%
+  select(all_of(variables)) %>%
+  cor(use = "complete.obs", method = "pearson")
+
+tabla_cor <- matriz_cor %>%
+  round(2) %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "Variable") %>%
+  rename_with(~ gsub("_1000h|_1000hab|hospitalizacion_|dotacion_|quirurgica_|consultas_|urgencias_", "", .x))
+
+formatear_tabla(
+  tabla_cor,
+  "Tabla 3. Matriz de correlaciones",
+  "Variables incluidas en el análisis",
+  "Fuente: elaboración propia."
+)
+
+```
+
+
+```{r}
+
+corrplot(
+  matriz_cor,
+  method = "color",
+  type = "upper",
+  order = "hclust",
+  tl.col = "black",
+  tl.cex = 0.7,
+  addCoef.col = "black",
+  number.cex = 0.6
+)
+
+```
+
+## Resultados del modelo econométrico
+
+### Resultados generales del modelo principal
+
+Con el fin de analizar la evolución de los distintos indicadores de organización asistencial tras el inicio de la pandemia de COVID-19, se estimó un modelo de datos de panel con efectos fijos por comunidad autónoma, tendencia temporal lineal y efectos dinámicos para cada uno de los años comprendidos entre 2020 y 2024, de acuerdo con la especificación descrita en el apartado metodológico.
+
+Los modelos se estimaron de forma independiente para cada uno de los siete indicadores seleccionados, utilizando errores estándar robustos agrupados por comunidad autónoma. Esta estrategia permite evaluar la evolución temporal de cada dimensión de la organización asistencial controlando las diferencias estructurales permanentes entre comunidades autónomas y la tendencia previa de cada indicador.
+
+La Tabla X resume los principales resultados obtenidos para el modelo principal. En ella se presentan los coeficientes estimados para la tendencia temporal y para cada uno de los años posteriores al inicio de la pandemia, tomando 2019 como categoría de referencia. La interpretación conjunta de estos coeficientes permite identificar si los indicadores ya seguían una trayectoria de cambio antes de la pandemia, evaluar el impacto inmediato de la COVID-19 y analizar si dichos cambios persistieron o tendieron a desaparecer durante los años posteriores.
+
+```{r}
+
+# 1. Datos para los modelos
+datos_modelo <- datos %>%
+  mutate(
+    trend = año - 2010,
+    d2020 = if_else(año == 2020, 1, 0),
+    d2021 = if_else(año == 2021, 1, 0),
+    d2022 = if_else(año == 2022, 1, 0),
+    d2023 = if_else(año == 2023, 1, 0),
+    d2024 = if_else(año == 2024, 1, 0)
+  )
+
+# 2. Variables finales
+variables_modelo <- c(
+  "dotacion_puestos_hospital_dia_total_1000h",
+  "hospitalizacion_altas_1000h",
+  "hospitalizacion_estancia_media",
+  "hospitalizacion_indica_ocupacion",
+  "quirurgica_tasa_ambulatorizacion",
+  "consultas_consultas_1000h",
+  "urgencias_frecuentacion_1000h"
+)
+
+# 3. Etiquetas
+etiquetas_variables <- c(
+  dotacion_puestos_hospital_dia_total_1000h = "Hospital de día",
+  hospitalizacion_altas_1000h = "Altas hospitalarias",
+  hospitalizacion_estancia_media = "Estancia media",
+  hospitalizacion_indica_ocupacion = "Índice de ocupación",
+  quirurgica_tasa_ambulatorizacion = "Cirugía ambulatoria",
+  consultas_consultas_1000h = "Consultas",
+  urgencias_frecuentacion_1000h = "Urgencias"
+)
+
+# 4. Función para estimar modelos
+estimar_modelo <- function(var_y, incluir_trend = TRUE) {
+  
+  rhs <- if (incluir_trend) {
+    "trend + d2020 + d2021 + d2022 + d2023 + d2024"
+  } else {
+    "d2020 + d2021 + d2022 + d2023 + d2024"
+  }
+  
+  f <- as.formula(
+    paste0(var_y, " ~ ", rhs, " | comunidad")
+  )
+  
+  feols(
+    f,
+    data = datos_modelo,
+    cluster = ~ comunidad
+  )
+}
+
+# 5. Modelos principales
+modelos_principales <- map(
+  variables_modelo,
+  ~estimar_modelo(.x, incluir_trend = TRUE)
+)
+
+names(modelos_principales) <- variables_modelo
+
+# 6. Modelos de robustez sin tendencia
+modelos_robustez <- map(
+  variables_modelo,
+  ~estimar_modelo(.x, incluir_trend = FALSE)
+)
+
+names(modelos_robustez) <- variables_modelo
+
+extraer_resultados <- function(lista_modelos, incluir_trend = TRUE) {
+  
+  terminos <- if (incluir_trend) {
+    c("trend", "d2020", "d2021", "d2022", "d2023", "d2024")
+  } else {
+    c("d2020", "d2021", "d2022", "d2023", "d2024")
+  }
+  
+  map_dfr(names(lista_modelos), function(v) {
+    
+    tidy(lista_modelos[[v]]) %>%
+      filter(term %in% terminos) %>%
+      mutate(
+        Variable = etiquetas_variables[v],
+        Periodo = case_when(
+          term == "trend" ~ "Tendencia",
+          term == "d2020" ~ "2020",
+          term == "d2021" ~ "2021",
+          term == "d2022" ~ "2022",
+          term == "d2023" ~ "2023",
+          term == "d2024" ~ "2024"
+        ),
+        Coeficiente = case_when(
+          p.value < 0.001 ~ paste0(round(estimate, 2), "***"),
+          p.value < 0.01  ~ paste0(round(estimate, 2), "**"),
+          p.value < 0.05  ~ paste0(round(estimate, 2), "*"),
+          p.value < 0.10  ~ paste0(round(estimate, 2), "."),
+          TRUE            ~ as.character(round(estimate, 2))
+        )
+      ) %>%
+      select(Variable, Periodo, Coeficiente)
+  })
+}
+
+# Tabla principal corregida: orden conceptual + R2 within + nota completa
+
+orden_variables <- c(
+  "Hospital de día",
+  "Cirugía ambulatoria",
+  "Altas hospitalarias",
+  "Índice de ocupación",
+  "Estancia media",
+  "Consultas",
+  "Urgencias"
+)
+
+tabla_r2_principal <- map_dfr(names(modelos_principales), function(v) {
+  tibble(
+    Variable = etiquetas_variables[v],
+    `R² (within)` = round(as.numeric(fitstat(modelos_principales[[v]], "wr2")), 2)
+  )
+})
+
+tabla_modelo_principal <- extraer_resultados(
+  modelos_principales,
+  incluir_trend = TRUE
+) %>%
+  pivot_wider(
+    names_from = Periodo,
+    values_from = Coeficiente
+  ) %>%
+  left_join(tabla_r2_principal, by = "Variable") %>%
+  mutate(
+    Variable = factor(Variable, levels = orden_variables)
+  ) %>%
+  arrange(Variable) %>%
+  mutate(
+    Variable = as.character(Variable)
+  ) %>%
+  select(
+    Variable,
+    Tendencia,
+    `2020`,
+    `2021`,
+    `2022`,
+    `2023`,
+    `2024`,
+    `R² (within)`
+  )
+
+formatear_tabla(
+  tabla_modelo_principal,
+  titulo = "Tabla 4. Estimación del modelo principal",
+  subtitulo = "Modelo con efectos fijos por comunidad autónoma y tendencia temporal",
+  fuente = "Fuente: elaboración propia. Modelos de datos de panel con efectos fijos por comunidad autónoma. Errores estándar robustos agrupados (clustered) por comunidad autónoma. El año 2019 constituye la categoría de referencia. Significación: *** p<0,001; ** p<0,01; * p<0,05; . p<0,10."
+)
+
+```
+
+#### Tendencias organizativas previas a la pandemia
+
+El primer aspecto que se desprende de la estimación del modelo principal es que no todos los indicadores de organización asistencial presentaban un comportamiento estable antes del inicio de la pandemia. Por el contrario, varios de ellos ya mostraban una evolución sistemática durante el período previo a 2020, lo que pone de manifiesto que determinados procesos de transformación organizativa se encontraban en marcha con anterioridad a la irrupción de la COVID-19.
+
+En concreto, la dotación de puestos de hospital de día, la tasa de cirugía mayor ambulatoria, el número de consultas y la frecuentación de urgencias presentan una tendencia temporal positiva y estadísticamente significativa. Este resultado indica que estos indicadores experimentaban un crecimiento sostenido antes de la pandemia, compatible con un proceso gradual de reorganización de la asistencia sanitaria hacia modelos más ambulatorios y una creciente utilización de recursos asistenciales alternativos a la hospitalización convencional.
+
+Por el contrario, las altas hospitalarias, la estancia media y el índice de ocupación no muestran una tendencia temporal estadísticamente significativa. En estos casos, la evolución observada durante el período previo a 2020 puede considerarse relativamente estable, de modo que cualquier desviación posterior resulta más fácilmente atribuible al impacto de la pandemia que a cambios estructurales ya existentes.
+
+Estos resultados constituyen un elemento clave para la interpretación del resto del análisis. Si una variable ya seguía una trayectoria de crecimiento o descenso antes de 2020, un incremento o una reducción observados tras la pandemia no pueden atribuirse automáticamente a la COVID-19. Por ello, la incorporación de una tendencia temporal en la especificación econométrica permite distinguir entre la continuidad de procesos organizativos preexistentes y las posibles alteraciones provocadas por la crisis sanitaria.
+
+En conjunto, la evidencia obtenida sugiere que la organización asistencial de los hospitales públicos españoles ya se encontraba inmersa en un proceso de transformación antes del inicio de la pandemia. En consecuencia, el interés del análisis no reside únicamente en determinar si la COVID-19 produjo cambios, sino en establecer si dichos cambios modificaron la trayectoria que seguían estos indicadores o, por el contrario, actuaron principalmente como un elemento de aceleración o interrupción temporal de tendencias ya existentes.
+
+#### Impacto inmediato de la COVID-19 sobre la organización asistencial
+
+Una vez considerada la tendencia previa de cada indicador, los coeficientes correspondientes al año 2020 permiten evaluar el impacto inmediato de la pandemia sobre la organización asistencial de los hospitales públicos españoles. Los resultados muestran que la irrupción de la COVID-19 produjo una alteración significativa del funcionamiento habitual del sistema sanitario, aunque con una intensidad y dirección diferentes según la dimensión analizada.
+
+El efecto más evidente se observa en los indicadores directamente relacionados con la actividad hospitalaria y la utilización de los servicios asistenciales. Tanto las altas hospitalarias como el índice de ocupación, la tasa de cirugía mayor ambulatoria, el número de consultas y la frecuentación de urgencias experimentan descensos estadísticamente significativos durante 2020 respecto a la trayectoria que cabría esperar de acuerdo con la evolución observada en los años anteriores. Estos resultados son coherentes con la profunda reorganización de la actividad asistencial que tuvo lugar durante los primeros meses de la pandemia, caracterizada por la suspensión de procedimientos programados, la reducción de la actividad ambulatoria y la reasignación de recursos hacia la atención de pacientes afectados por la COVID-19.
+
+En contraste, la dotación de puestos de hospital de día y la estancia media no presentan desviaciones estadísticamente significativas en 2020 una vez controlada la tendencia temporal. En el primer caso, ello sugiere que la expansión de este recurso asistencial respondió principalmente a un proceso organizativo ya iniciado antes de la pandemia, sin que pueda identificarse un efecto adicional atribuible al inicio de la crisis sanitaria. En cuanto a la estancia media, la ausencia de un efecto significativo indica que, pese a la elevada presión asistencial experimentada por el sistema hospitalario, no se produjo una modificación estructural inmediata en la duración media de los ingresos una vez consideradas las diferencias entre comunidades autónomas y la evolución temporal previa.
+
+En conjunto, estos resultados ponen de manifiesto que el principal efecto inicial de la pandemia no consistió en transformar de forma inmediata la organización asistencial, sino en alterar de manera intensa el nivel de actividad del sistema hospitalario. La mayor parte de las desviaciones observadas en 2020 reflejan una interrupción del funcionamiento ordinario de los hospitales más que la aparición de un nuevo modelo organizativo. Esta distinción resulta especialmente relevante para los objetivos del presente trabajo, ya que anticipa la necesidad de analizar si dichas alteraciones persistieron en los años posteriores o si, por el contrario, el sistema sanitario recuperó progresivamente la trayectoria que seguía antes de la pandemia.
+
+#### Persistencia de los cambios y evolución postpandemia
+
+El análisis de los coeficientes correspondientes al período 2021–2024 permite evaluar si las alteraciones observadas durante el primer año de la pandemia representaron cambios estructurales en la organización asistencial o, por el contrario, constituyeron perturbaciones transitorias sobre la evolución previa de los indicadores. Desde esta perspectiva, los resultados muestran un comportamiento heterogéneo entre las distintas dimensiones analizadas, sin evidencias de una transformación organizativa uniforme del sistema hospitalario.
+
+En primer lugar, varios indicadores muestran una recuperación progresiva tras el impacto inicial de la pandemia. Tanto las altas hospitalarias como las consultas y la frecuentación de urgencias presentan desviaciones negativas muy acusadas en 2020 que se reducen gradualmente durante los años posteriores, aproximándose de forma progresiva a la trayectoria esperada según la tendencia previa. Este comportamiento sugiere que la interrupción de la actividad asistencial respondió fundamentalmente a las circunstancias excepcionales derivadas de la emergencia sanitaria y que, una vez superada la fase más crítica, el sistema tendió a recuperar sus patrones habituales de funcionamiento.
+
+Un segundo grupo de indicadores refleja una situación diferente. La dotación de puestos de hospital de día y la cirugía mayor ambulatoria continúan mostrando una evolución compatible con las tendencias observadas antes de la pandemia. En estos casos, el análisis no proporciona evidencia suficiente para afirmar que la COVID-19 generara un cambio estructural independiente, sino que apunta a la continuidad de procesos de reorganización asistencial previamente iniciados. La pandemia parece haber coexistido con estas transformaciones, pero los resultados no permiten atribuirle el origen de su evolución.
+
+Por el contrario, el índice de ocupación hospitalaria mantiene desviaciones negativas estadísticamente significativas durante prácticamente todo el período posterior a 2020. A diferencia de otros indicadores, la recuperación no devuelve completamente la variable a la trayectoria esperada según su comportamiento previo, lo que podría reflejar la persistencia de cambios en la utilización de la capacidad hospitalaria o una reorganización más duradera de determinados procesos asistenciales. No obstante, esta evidencia debe interpretarse con cautela y será objeto de un análisis más detallado en los apartados posteriores.
+
+Finalmente, la estancia media presenta una notable estabilidad a lo largo de todo el período analizado. Una vez controladas las diferencias estructurales entre comunidades autónomas y la evolución temporal previa, no se observan desviaciones significativas que permitan asociar la pandemia con modificaciones persistentes en la duración media de los ingresos hospitalarios.
+
+En conjunto, los resultados sugieren que la pandemia no dio lugar a una transformación organizativa generalizada del sistema hospitalario español. Más bien, la evidencia apunta a un escenario en el que la COVID-19 produjo una intensa perturbación inicial de la actividad asistencial, mientras que la evolución posterior estuvo determinada, en gran medida, por la recuperación progresiva del funcionamiento ordinario de los hospitales y por la continuidad de procesos de reorganización que ya se encontraban en marcha antes de 2020. En consecuencia, la persistencia observada en algunos indicadores parece responder más a la consolidación o aceleración de tendencias preexistentes que a la aparición de un nuevo modelo organizativo originado exclusivamente por la pandemia.
+
+#### Síntesis de los resultados del modelo principal
+
+Los resultados obtenidos mediante el modelo principal permiten extraer varias conclusiones relevantes sobre la evolución de la organización asistencial de los hospitales públicos españoles durante el período analizado. En primer lugar, la evidencia muestra que una parte de los cambios observados tras la pandemia no constituye un fenómeno nuevo, sino la continuación de procesos de transformación que ya estaban presentes antes de 2020. La existencia de tendencias temporales significativas en indicadores como la dotación de puestos de hospital de día, la cirugía mayor ambulatoria, las consultas o la frecuentación de urgencias pone de manifiesto que el sistema hospitalario ya se encontraba inmerso en un proceso de reorganización asistencial con anterioridad a la irrupción de la COVID-19.
+
+En segundo lugar, la pandemia produjo una alteración intensa del funcionamiento habitual del sistema sanitario durante 2020. Esta perturbación afectó especialmente a los indicadores relacionados con el volumen de actividad asistencial, reflejando la necesidad de reorganizar los recursos hospitalarios para hacer frente a la emergencia sanitaria. Sin embargo, el análisis dinámico muestra que, en la mayoría de los casos, estas alteraciones tendieron a reducirse progresivamente durante los años posteriores, lo que sugiere un proceso gradual de recuperación de la actividad ordinaria.
+
+Finalmente, la evolución observada entre 2021 y 2024 indica que los efectos de la pandemia no fueron homogéneos entre las distintas dimensiones analizadas. Mientras algunos indicadores recuperan progresivamente la trayectoria que seguían antes de la crisis sanitaria, otros mantienen desviaciones persistentes o continúan evolucionando de acuerdo con tendencias previamente existentes. En consecuencia, la evidencia obtenida no respalda la existencia de una transformación organizativa uniforme del sistema hospitalario español atribuible exclusivamente a la pandemia.
+
+En conjunto, los resultados del modelo principal sugieren que la COVID-19 actuó principalmente como un factor de perturbación sobre un proceso de transformación organizativa ya iniciado con anterioridad, modificando temporalmente la intensidad o la velocidad de evolución de algunos indicadores, pero sin constituir, con carácter general, el origen de un nuevo modelo organizativo. Esta conclusión resulta coherente con la hipótesis de que la pandemia aceleró, interrumpió o consolidó determinadas dinámicas preexistentes, más que generar cambios estructurales completamente independientes de la evolución previa del sistema sanitario.
+
+No obstante, la interpretación realizada hasta este punto corresponde al comportamiento medio del conjunto de las comunidades autónomas. Dado el elevado grado de descentralización del Sistema Nacional de Salud, resulta razonable plantear que la intensidad y la persistencia de estos efectos no hayan sido homogéneas entre territorios. Antes de abordar este análisis de heterogeneidad, el siguiente apartado examina de forma individual la evolución de cada uno de los indicadores incluidos en el estudio, con el fin de comprender con mayor detalle los mecanismos que subyacen a los resultados agregados obtenidos mediante el modelo principal.
+
+### Análisis individual de los indicadores
+
+Aunque el análisis anterior permite identificar los principales patrones de evolución de la organización asistencial tras la pandemia, resulta necesario examinar de forma individual cada uno de los indicadores incluidos en el estudio. Este análisis permite interpretar con mayor detalle la magnitud, dirección y persistencia de los efectos estimados por el modelo econométrico, así como comprender cómo contribuye cada variable a los resultados generales obtenidos para el conjunto del sistema hospitalario.
+
+Para cada indicador se presenta, en primer lugar, la representación gráfica de los coeficientes estimados mediante el modelo principal, tomando 2019 como categoría de referencia. A continuación, se interpretan los resultados obtenidos y se contrastan con una especificación alternativa sin tendencia temporal, utilizada como análisis de robustez. Esta comparación permite valorar hasta qué punto las conclusiones dependen de controlar explícitamente la evolución previa de cada indicador y distinguir entre cambios atribuibles a la pandemia y la continuidad de tendencias organizativas ya existentes.
+
+#### Dotación de puestos de hospital de día
+
+```{r}
+
+extraer_coeficientes_grafico <- function(modelo, variable_nombre) {
+  
+  tidy(modelo, conf.int = TRUE) %>%
+    filter(term %in% c("d2020", "d2021", "d2022", "d2023", "d2024")) %>%
+    mutate(
+      año = as.numeric(gsub("d", "", term)),
+      variable = variable_nombre
+    )
+}
+
+plot_modelo_principal <- function(var_y, titulo, subtitulo = NULL, modelos = modelos_principales) {
+  
+  datos_plot <- extraer_coeficientes_grafico(
+    modelos_principales[[var_y]],
+    etiquetas_variables[var_y]
+  )
+  
+  ggplot(datos_plot, aes(x = año, y = estimate)) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_point(size = 2.4) +
+    geom_errorbar(
+      aes(ymin = conf.low, ymax = conf.high),
+      width = 0.15
+    ) +
+    scale_x_continuous(breaks = 2020:2024) +
+    labs(
+      title = titulo,
+      subtitle = subtitulo,
+      x = "Año",
+      y = "Desviación respecto a la trayectoria esperada"
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      plot.title = element_text(face = "bold"),
+      plot.subtitle = element_text(size = 10),
+      panel.grid.minor = element_blank()
+    )
+}
+
+plot_modelo_principal(
+  var_y = "dotacion_puestos_hospital_dia_total_1000h",
+  titulo = "Dotación de puestos de hospital de día",
+  subtitulo = "Desviaciones estimadas respecto a la trayectoria previa (2019 = año de referencia)"
+) +
+  labs(
+    y = "Desviación estimada respecto a la trayectoria previa"
+  )
+
+```
+
+En el caso de la dotación de puestos de hospital de día, el modelo principal muestra una tendencia temporal positiva y estadísticamente significativa, lo que indica que este indicador ya seguía una trayectoria creciente antes de la pandemia. Una vez controlada dicha tendencia, los coeficientes estimados para los años 2020-2024 no muestran desviaciones estadísticamente significativas respecto a la trayectoria esperada.
+
+Este resultado sugiere que la expansión del hospital de día no puede interpretarse como una transformación originada por la COVID-19, sino como la continuación de un proceso organizativo previo. La pandemia pudo coexistir con dicha expansión, pero no se observa evidencia suficiente para afirmar que modificara de forma significativa su ritmo de crecimiento.
+
+#### Cirugía mayor ambulatoria
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "quirurgica_tasa_ambulatorizacion",
+  titulo = "Tasa de ambulatorización: % Intervenciones CMA",
+  subtitulo = "Desviaciones estimadas respecto a la trayectoria previa (2019 = año de referencia)"
+) +
+  labs(
+    y = "Desviación estimada respecto a la trayectoria previa"
+  )
+
+```
+En el caso de la tasa de ambulatorización, el modelo principal identifica una tendencia temporal positiva y estadísticamente significativa, lo que indica que la proporción de intervenciones realizadas mediante cirugía mayor ambulatoria ya venía aumentando antes de la pandemia. Una vez controlada dicha tendencia, los coeficientes estimados para los años 2020-2024 no presentan desviaciones estadísticamente significativas respecto a la trayectoria esperada, aunque el año 2020 muestra una desviación negativa de mayor magnitud.
+
+Estos resultados sugieren que la pandemia produjo una alteración transitoria en la actividad quirúrgica ambulatoria durante su primer año, compatible con la suspensión de intervenciones programadas y la reorganización de la actividad asistencial. Sin embargo, dicha perturbación no dio lugar a un cambio estructural en la evolución de la tasa de ambulatorización, que continuó siguiendo la trayectoria ascendente iniciada antes de la COVID-19. En consecuencia, no se observa evidencia de que la pandemia modificara de forma permanente el proceso de expansión de la cirugía mayor ambulatoria.
+
+#### Altas hospitalarias
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "hospitalizacion_altas_1000h",
+  titulo = "Altas por 1.000 hab",
+  subtitulo = "Desviaciones estimadas respecto a la trayectoria previa (2019 = año de referencia)"
+) +
+  labs(
+    y = "Desviación estimada respecto a la trayectoria previa"
+  )
+
+```
+
+En el caso de las altas hospitalarias por 1.000 habitantes, el modelo principal identifica una tendencia temporal positiva y estadísticamente significativa antes de la pandemia. No obstante, una vez controlada dicha tendencia, los coeficientes estimados para el período 2020-2024 muestran desviaciones negativas respecto a la trayectoria esperada. La mayor reducción se observa en 2020 y, aunque su magnitud disminuye progresivamente en los años posteriores, las altas hospitalarias no recuperan completamente la trayectoria prevista al final del período analizado.
+
+Estos resultados indican que la pandemia produjo una reducción sustancial de la actividad hospitalaria con ingreso, compatible con la suspensión de procedimientos programados y la reorganización de los recursos asistenciales durante la emergencia sanitaria. La recuperación observada en los años posteriores fue gradual, pero insuficiente para retornar a la senda previa, lo que sugiere la persistencia de un efecto estructural sobre el volumen de altas hospitalarias. Este patrón es coherente con un proceso de reorganización de la asistencia hospitalaria hacia modelos con menor utilización de la hospitalización convencional.
+
+#### Índice de ocupación
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "hospitalizacion_indica_ocupacion",
+  titulo = "Indice de Ocupación",
+  subtitulo = "Desviaciones estimadas respecto a la trayectoria previa (2019 = año de referencia)"
+) +
+  labs(
+    y = "Desviación estimada respecto a la trayectoria previa"
+  )
+
+```
+
+En el caso del índice de ocupación hospitalaria, el modelo principal identifica una tendencia temporal positiva y estadísticamente significativa antes de la pandemia. Sin embargo, una vez controlada dicha tendencia, los coeficientes estimados para el período 2020-2024 muestran desviaciones negativas respecto a la trayectoria esperada. La mayor reducción se observa en 2020 y, aunque la magnitud de esta desviación disminuye progresivamente en los años posteriores, el índice de ocupación permanece por debajo de la senda prevista durante todo el período analizado.
+
+Estos resultados sugieren que la pandemia alteró de forma persistente la utilización de la capacidad hospitalaria. La disminución inicial del índice de ocupación es compatible con la suspensión de actividad programada y la necesidad de mantener capacidad asistencial disponible durante la emergencia sanitaria. Aunque posteriormente se observa una recuperación gradual, el hecho de que el indicador no retome la trayectoria previa apunta a una modificación sostenida de los patrones de utilización de los recursos hospitalarios, coherente con una menor dependencia de la hospitalización convencional y con la reorganización de la actividad asistencial tras la COVID-19.
+
+#### Estancia media
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "hospitalizacion_estancia_media",
+  titulo = "Estancia Media",
+  subtitulo = "Desviaciones estimadas respecto a la trayectoria previa (2019 = año de referencia)"
+) +
+  labs(
+    y = "Desviación estimada respecto a la trayectoria previa"
+  )
+
+```
+En el caso de la estancia media hospitalaria, el modelo principal identifica una tendencia temporal positiva y estadísticamente significativa antes de la pandemia. Una vez controlada dicha tendencia, los coeficientes estimados para los años 2020-2024 presentan desviaciones positivas respecto a la trayectoria esperada, aunque ninguna de ellas alcanza significación estadística.
+
+Estos resultados indican que, si bien la estancia media pudo experimentar un ligero incremento durante el período posterior a la irrupción de la COVID-19, no se dispone de evidencia suficiente para afirmar que la pandemia modificara de forma estructural la duración de los ingresos hospitalarios. En consecuencia, la evolución observada es compatible con la continuidad de la tendencia previa, sin que se aprecien cambios persistentes atribuibles al impacto de la pandemia sobre este indicador.
+
+#### Consultas
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "consultas_consultas_1000h",
+  titulo = "Frecuentación: Nº Consultas por 1.000 hab",
+  subtitulo = "Desviaciones estimadas respecto a la trayectoria previa (2019 = año de referencia)"
+) +
+  labs(
+    y = "Desviación estimada respecto a la trayectoria previa"
+  )
+
+```
+
+En el caso de las consultas hospitalarias por 1.000 habitantes, el modelo principal identifica una tendencia temporal positiva y estadísticamente significativa antes de la pandemia. Una vez controlada dicha tendencia, los coeficientes estimados muestran una desviación negativa muy acusada en 2020, que se reduce progresivamente en los años posteriores. La magnitud de esta desviación disminuye de forma continuada hasta desaparecer en 2024, año en el que no se observan diferencias estadísticamente significativas respecto a la trayectoria esperada.
+
+Estos resultados indican que la pandemia provocó una interrupción transitoria de la actividad ambulatoria hospitalaria, compatible con la suspensión de consultas presenciales y la reorganización de la asistencia durante la emergencia sanitaria. No obstante, la recuperación observada en los años posteriores sugiere que este impacto fue temporal y que el volumen de consultas retornó gradualmente a la trayectoria previa, sin que se aprecie evidencia de un cambio estructural persistente en la frecuentación hospitalaria.
+
+#### Urgencias
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "urgencias_frecuentacion_1000h",
+  titulo = "Frecuentación urgencias por 1.000 hab",
+  subtitulo = "Desviaciones estimadas respecto a la trayectoria previa (2019 = año de referencia)"
+) +
+  labs(
+    y = "Desviación estimada respecto a la trayectoria previa"
+  )
+
+```
+En el caso de las urgencias hospitalarias por 1.000 habitantes, el modelo principal identifica una tendencia temporal positiva y estadísticamente significativa antes de la pandemia. Una vez controlada dicha tendencia, los coeficientes estimados muestran una desviación negativa muy acusada en 2020, cuya magnitud disminuye progresivamente en los años posteriores. A partir de 2023 las desviaciones dejan de ser estadísticamente significativas, lo que indica una recuperación de la trayectoria esperada.
+
+Estos resultados sugieren que la pandemia provocó una reducción transitoria en la utilización de los servicios de urgencias hospitalarias, compatible con las restricciones de movilidad, la modificación de los patrones de utilización de los servicios sanitarios y la reorganización asistencial durante la emergencia sanitaria. Sin embargo, la recuperación observada en los años posteriores indica que este efecto no fue permanente y que la frecuentación de las urgencias volvió gradualmente a la trayectoria previa, sin que se observe evidencia de un cambio estructural persistente asociado a la COVID-19
+
+## Análisis de robustez
+
+### Objetivo
+
+Los resultados obtenidos mediante el modelo principal dependen de las hipótesis de especificación adoptadas. Con el fin de comprobar la estabilidad de las estimaciones y evaluar si las conclusiones principales se mantienen bajo especificaciones alternativas, se realizaron dos análisis de robustez complementarios. En primer lugar, se contrastó la influencia de la tendencia temporal común incorporada en el modelo, dado que esta constituye uno de los principales supuestos de la estrategia empírica utilizada. En segundo lugar, se estimó una especificación con efectos aleatorios para evaluar si las conclusiones obtenidas dependen de la elección de un modelo de efectos fijos para controlar la heterogeneidad no observada entre comunidades autónomas.
+
+### Robustez frente a la exclusión de la tendencia temporal
+
+Con el fin de evaluar la sensibilidad de los resultados a la especificación del modelo, se estimó una versión alternativa en la que se eliminó la tendencia temporal común. De este modo, los coeficientes asociados a los años posteriores a la pandemia dejan de interpretarse como desviaciones respecto a la trayectoria previa y pasan a reflejar diferencias respecto al año base (2019). La comparación entre ambas especificaciones permite valorar hasta qué punto las conclusiones dependen del supuesto de una evolución temporal común anterior a la pandemia.
+
+### Resultados del modelo sin tendencia temporal
+
+#### Dotación de puestos de hospital de día
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "dotacion_puestos_hospital_dia_total_1000h",
+  titulo = "Dotación de puestos de hospital de día",
+  subtitulo = "Modelo sin tendencia temporal (2019 = año de referencia)",
+  modelos = modelos_robustez
+) +
+  labs(
+    y = "Diferencia estimada respecto a 2019"
+  )
+
+```
+
+En la especificación sin tendencia temporal, los coeficientes estimados para la dotación de puestos de hospital de día mantienen un patrón muy similar al observado en el modelo principal. Ninguno de los coeficientes correspondientes al período 2020-2024 resulta estadísticamente significativo, lo que indica que, incluso tomando como referencia directa el año 2019, no se observan diferencias significativas en la evolución del indicador tras la pandemia.
+
+En comparación con el modelo principal, la eliminación de la tendencia temporal apenas modifica la magnitud o la significación de los coeficientes estimados. En consecuencia, las conclusiones obtenidas se mantienen inalteradas: la pandemia no produjo un cambio estructural en la dotación de puestos de hospital de día, lo que refuerza la robustez de los resultados y respalda la interpretación de que la evolución observada responde fundamentalmente a un proceso de crecimiento ya existente antes de la COVID-19.
+
+#### Cirugía mayor ambulatoria
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "quirurgica_tasa_ambulatorizacion",
+  titulo = "Cirugía mayor ambulatoria",
+  subtitulo = "Modelo sin tendencia temporal (2019 = año de referencia)",
+  modelos = modelos_robustez
+) +
+  labs(
+    y = "Diferencia estimada respecto a 2019"
+  )
+
+```
+
+En la especificación sin tendencia temporal, los coeficientes estimados para la tasa de cirugía mayor ambulatoria mantienen un patrón muy similar al observado en el modelo principal. Aunque el año 2020 presenta la mayor desviación negativa respecto al año base, ninguno de los coeficientes correspondientes al período 2020-2024 alcanza significación estadística.
+
+En comparación con el modelo principal, la eliminación de la tendencia temporal apenas modifica la magnitud o la significación de los coeficientes estimados. Por tanto, las conclusiones permanecen inalteradas: la reducción observada durante la pandemia puede interpretarse como una perturbación transitoria de la actividad quirúrgica, pero no existe evidencia de que la COVID-19 produjera un cambio estructural en la evolución de la tasa de cirugía mayor ambulatoria. Estos resultados refuerzan la robustez de las conclusiones obtenidas con la especificación principal.
+
+#### Altas hospitalarias
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "hospitalizacion_altas_1000h",
+  titulo = "Altas hospitalarias",
+  subtitulo = "Modelo sin tendencia temporal (2019 = año de referencia)",
+  modelos = modelos_robustez
+) +
+  labs(
+    y = "Diferencia estimada respecto a 2019"
+  )
+
+```
+
+En la especificación sin tendencia temporal, los coeficientes estimados para las altas hospitalarias mantienen el mismo patrón observado en el modelo principal. Se aprecia una reducción muy acusada en 2020, seguida de una recuperación progresiva en los años posteriores. No obstante, las estimaciones permanecen por debajo del nivel de referencia de 2019 durante todo el período analizado, aunque la magnitud de la desviación disminuye de forma continuada.
+
+En comparación con el modelo principal, la eliminación de la tendencia temporal apenas modifica la evolución de los coeficientes ni las conclusiones sustantivas del análisis. La pandemia continúa asociándose a una reducción persistente de las altas hospitalarias respecto al escenario previo, lo que confirma que el efecto identificado no depende de la inclusión de una tendencia temporal común. En consecuencia, los resultados respaldan la robustez de la evidencia obtenida en el modelo principal y refuerzan la interpretación de que la COVID-19 produjo un impacto sostenido sobre la actividad hospitalaria con ingreso.
+
+#### Índice de ocupación
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "hospitalizacion_indica_ocupacion",
+  titulo = "Índice de ocupación",
+  subtitulo = "Modelo sin tendencia temporal (2019 = año de referencia)",
+  modelos = modelos_robustez
+) +
+  labs(
+    y = "Diferencia estimada respecto a 2019"
+  )
+
+```
+
+En la especificación sin tendencia temporal, los coeficientes estimados para el índice de ocupación hospitalaria reproducen el mismo patrón observado en el modelo principal. La mayor desviación negativa se registra en 2020 y su magnitud disminuye progresivamente en los años posteriores, aunque el indicador permanece por debajo del nivel de referencia de 2019 durante todo el período analizado.
+
+En comparación con el modelo principal, la eliminación de la tendencia temporal no modifica de forma apreciable la magnitud, el signo ni la significación de los coeficientes estimados. En consecuencia, las conclusiones se mantienen inalteradas: la pandemia produjo una reducción persistente del índice de ocupación hospitalaria, cuya recuperación fue gradual pero insuficiente para retornar a la situación previa. Estos resultados refuerzan la robustez de la evidencia obtenida y respaldan la existencia de un cambio sostenido en los patrones de utilización de la capacidad hospitalaria tras la COVID-19.
+
+#### Estancia media
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "hospitalizacion_estancia_media",
+  titulo = "Estancia media",
+  subtitulo = "Modelo sin tendencia temporal (2019 = año de referencia)",
+  modelos = modelos_robustez
+) +
+  labs(
+    y = "Diferencia estimada respecto a 2019"
+  )
+
+```
+En la especificación sin tendencia temporal, los coeficientes estimados para la estancia media presentan un patrón muy similar al obtenido en el modelo principal. Aunque las estimaciones muestran desviaciones positivas respecto al año base durante todo el período analizado, ninguna de ellas alcanza significación estadística.
+
+En comparación con el modelo principal, la eliminación de la tendencia temporal apenas modifica la magnitud, el signo o la significación de los coeficientes estimados. En consecuencia, las conclusiones permanecen inalteradas y continúan indicando que no existe evidencia de un cambio estructural en la estancia media hospitalaria asociado a la pandemia. Estos resultados refuerzan la robustez de la especificación principal y sugieren que la evolución observada responde fundamentalmente a la variabilidad habitual del indicador, más que a un efecto persistente de la COVID-19.
+
+#### Consultas
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "consultas_consultas_1000h",
+  titulo = "Consultas",
+  subtitulo = "Modelo sin tendencia temporal (2019 = año de referencia)",
+  modelos = modelos_robustez
+) +
+  labs(
+    y = "Diferencia estimada respecto a 2019"
+  )
+
+```
+
+En la especificación sin tendencia temporal, los coeficientes estimados para el número de consultas hospitalarias mantienen el mismo patrón observado en el modelo principal. Se aprecia una reducción muy acusada de la actividad en 2020, seguida de una recuperación progresiva en los años posteriores, hasta alcanzar en 2024 un nivel compatible con el observado antes de la pandemia, sin diferencias estadísticamente significativas respecto al año base.
+
+En comparación con el modelo principal, la eliminación de la tendencia temporal apenas modifica la evolución de los coeficientes ni la interpretación de los resultados. La pandemia continúa mostrando un impacto transitorio sobre la actividad ambulatoria hospitalaria, caracterizado por una fuerte reducción inicial y una recuperación gradual hasta retornar a los niveles previos. En consecuencia, las conclusiones del modelo principal se mantienen inalteradas, lo que aporta evidencia adicional sobre la robustez de los resultados obtenidos.
+
+#### Urgencias
+
+```{r}
+
+plot_modelo_principal(
+  var_y = "urgencias_frecuentacion_1000h",
+  titulo = "Urgencias",
+  subtitulo = "Modelo sin tendencia temporal (2019 = año de referencia)",
+  modelos = modelos_robustez
+) +
+  labs(
+    y = "Diferencia estimada respecto a 2019"
+  )
+
+```
+
+En la especificación sin tendencia temporal, los coeficientes estimados para las urgencias hospitalarias reproducen el mismo patrón observado en el modelo principal. Se observa una marcada reducción de la frecuentación en 2020, seguida de una recuperación progresiva en los años posteriores. A partir de 2023 las diferencias respecto al año base dejan de ser estadísticamente significativas, lo que indica un retorno gradual a los niveles previos a la pandemia.
+
+En comparación con el modelo principal, la eliminación de la tendencia temporal apenas modifica la magnitud, el signo o la significación de los coeficientes estimados. En consecuencia, las conclusiones permanecen inalteradas y continúan indicando que el impacto de la pandemia sobre la utilización de los servicios de urgencias fue esencialmente transitorio. La recuperación observada en los años posteriores confirma que no existe evidencia de un cambio estructural persistente en este indicador, lo que refuerza la robustez de los resultados obtenidos con la especificación principal.
+
+### Síntesis del análisis de robustez (sin tendencial temporal)
+
+En conjunto, los resultados obtenidos mediante la especificación sin tendencia temporal muestran un elevado grado de consistencia con los del modelo principal. En ninguno de los indicadores analizados se observan cambios relevantes en el signo, la magnitud o la significación estadística de los coeficientes estimados que conduzcan a una modificación de las conclusiones sustantivas del estudio.
+
+En particular, los indicadores para los que el modelo principal no identificaba evidencia de cambios estructurales tras la pandemia, como la dotación de puestos de hospital de día, la cirugía mayor ambulatoria o la estancia media, mantienen esa misma interpretación bajo la especificación alternativa. Del mismo modo, los indicadores que mostraban alteraciones persistentes, como las altas hospitalarias y el índice de ocupación, continúan presentando desviaciones sostenidas respecto a la situación previa a la pandemia. Finalmente, las consultas hospitalarias y las urgencias conservan el patrón de fuerte reducción inicial seguido de una recuperación gradual hasta niveles compatibles con los observados antes de la COVID-19.
+
+En consecuencia, la comparación entre ambas especificaciones pone de manifiesto que las conclusiones del modelo principal no dependen de la inclusión de una tendencia temporal común. La estabilidad de los resultados obtenidos refuerza la robustez del análisis empírico y aumenta la confianza en la interpretación de los efectos asociados a la pandemia sobre la organización de la asistencia hospitalaria
+
+```{r}
+
+tabla_robustez <- tibble::tibble(
+  Indicador = c(
+    "Dotación de puestos de hospital de día",
+    "Cirugía mayor ambulatoria",
+    "Altas hospitalarias",
+    "Índice de ocupación",
+    "Estancia media",
+    "Consultas hospitalarias",
+    "Urgencias hospitalarias"
+  ),
+  `Modelo principal` = c(
+    "Sin efecto estructural",
+    "Sin efecto estructural",
+    "Efecto persistente",
+    "Efecto persistente",
+    "Sin efecto estructural",
+    "Efecto transitorio",
+    "Efecto transitorio"
+  ),
+  `Modelo sin tendencia` = c(
+    "Sin cambios",
+    "Sin cambios",
+    "Se mantiene",
+    "Se mantiene",
+    "Sin cambios",
+    "Se mantiene",
+    "Se mantiene"
+  ),
+  Conclusión = c(
+    "Robusto",
+    "Robusto",
+    "Robusto",
+    "Robusto",
+    "Robusto",
+    "Robusto",
+    "Robusto"
+  )
+)
+
+formatear_tabla(
+  tabla_robustez,
+  titulo = "Resumen del análisis de robustez del modelo sin tendencia temporal"
+)
+
+```
+
+### Robustez frente a una especificación con efectos aleatorios
+
+Como análisis de robustez adicional, se compararán los resultados obtenidos mediante el modelo principal de efectos fijos con una especificación alternativa basada en efectos aleatorios. El objetivo de esta comparación es evaluar si las conclusiones del estudio dependen del tratamiento de la heterogeneidad no observada entre comunidades autónomas o, por el contrario, se mantienen estables bajo una especificación econométrica diferente.
+
+Para cada uno de los indicadores seleccionados se estimará un modelo de efectos aleatorios con la misma estructura temporal empleada en el modelo principal, permitiendo comparar el signo, la magnitud y la significación estadística de los coeficientes asociados a los años posteriores al inicio de la pandemia.
+
+Los resultados de este análisis se incorporarán en la versión final del trabajo, junto con su correspondiente interpretación y discusión, con el fin de completar la evaluación de la robustez de las principales conclusiones obtenidas.
+
+## Heterogeneidad territorial
+
+Uno de los principales retos en el análisis de la organización asistencial del Sistema Nacional de Salud es la existencia de diferencias estructurales entre comunidades autónomas. Factores como la estructura demográfica, el nivel de financiación sanitaria, la disponibilidad de recursos, el modelo organizativo o la intensidad de utilización de los servicios hospitalarios generan niveles muy distintos en la mayoría de los indicadores analizados.
+
+Con el fin de evitar que estas diferencias condicionen la estimación del impacto de la pandemia, el modelo econométrico incorpora efectos fijos por comunidad autónoma. Esta especificación permite controlar todas aquellas características territoriales que permanecen relativamente constantes a lo largo del tiempo, de forma que los coeficientes estimados para los años posteriores a 2020 reflejan desviaciones respecto a la trayectoria histórica de cada comunidad autónoma, y no diferencias estructurales entre ellas.
+
+El análisis exploratorio realizado durante la fase de auditoría confirmó la existencia de una importante heterogeneidad territorial en prácticamente todos los indicadores considerados. No obstante, también permitió identificar patrones temporales comunes entre comunidades autónomas, lo que respalda la utilización de una tendencia temporal compartida y de efectos específicos para cada año posterior al inicio de la pandemia.
+
+En consecuencia, los resultados obtenidos deben interpretarse como el efecto medio observado sobre el conjunto de las comunidades y ciudades autónomas incluidas en el estudio. Aunque pueden existir diferencias en la magnitud del impacto entre territorios concretos, el objetivo del presente trabajo es identificar la existencia de cambios estructurales comunes en la organización asistencial hospitalaria, más que analizar el comportamiento individual de cada servicio regional de salud.
+
+# Discusión
+
+Los resultados obtenidos muestran que la pandemia de COVID-19 produjo alteraciones relevantes en la organización asistencial de los hospitales públicos españoles, aunque con una intensidad y una persistencia diferentes según el indicador analizado. En conjunto, la evidencia sugiere que la crisis sanitaria actuó tanto como un factor de disrupción temporal de la actividad hospitalaria como un acelerador de determinados procesos organizativos ya existentes, sin que pueda afirmarse que todos los cambios observados respondan a una transformación estructural del sistema.
+
+Los indicadores relacionados con la actividad hospitalaria convencional fueron los que mostraron un mayor impacto persistente. Tanto las altas hospitalarias como el índice de ocupación presentaron desviaciones sostenidas respecto a la trayectoria observada antes de la pandemia, lo que sugiere que la recuperación de la actividad de hospitalización no ha supuesto un retorno completo al patrón previo. Estos resultados son compatibles con la existencia de cambios en la utilización de los recursos hospitalarios, derivados tanto de la acumulación de actividad diferida durante los primeros años de la pandemia como de la adaptación progresiva de los hospitales a nuevos modelos organizativos.
+
+Por el contrario, otros indicadores mostraron un comportamiento claramente transitorio. Las consultas hospitalarias y la actividad en urgencias experimentaron una alteración significativa durante los primeros años posteriores al inicio de la pandemia, aunque posteriormente recuperaron una evolución compatible con la trayectoria previa. Estos resultados indican que buena parte de las modificaciones observadas durante la crisis sanitaria respondieron a una reorganización temporal de la actividad asistencial más que a cambios permanentes en el funcionamiento de los hospitales.
+
+Especial interés presentan aquellos indicadores que no mostraron evidencia de un cambio estructural una vez considerada la tendencia previa. Tanto la cirugía mayor ambulatoria como la dotación de puestos de hospital de día mantuvieron la trayectoria de crecimiento que ya se observaba antes de 2020, sin que la pandemia modificara de forma significativa dicha evolución. Estos resultados apoyan la interpretación de que determinadas estrategias organizativas orientadas a reducir la hospitalización convencional constituían procesos de transformación ya iniciados antes de la crisis sanitaria, cuya continuidad no puede atribuirse exclusivamente a la COVID-19.
+
+Desde el punto de vista metodológico, los análisis de robustez realizados refuerzan la estabilidad de las principales conclusiones. La estimación de especificaciones alternativas sin tendencia temporal mostró una elevada consistencia en la interpretación de los resultados, lo que aumenta la confianza en que los efectos identificados no dependen de un supuesto concreto de especificación del modelo. La comparación prevista con modelos de efectos aleatorios permitirá completar esta evaluación en la versión final del trabajo.
+
+En conjunto, la evidencia obtenida pone de manifiesto que la pandemia no produjo una transformación homogénea de la organización asistencial hospitalaria. Mientras algunos indicadores recuperaron progresivamente su trayectoria previa, otros mantuvieron modificaciones persistentes varios años después del inicio de la crisis. Estos resultados reflejan la capacidad de adaptación del Sistema Nacional de Salud ante una situación excepcional, al tiempo que muestran que determinadas consecuencias organizativas de la pandemia continúan siendo observables una vez superada la fase aguda de la emergencia sanitaria.
+
+# Limitaciones
+
+El presente estudio presenta una serie de limitaciones que deben tenerse en cuenta al interpretar los resultados obtenidos.
+
+En primer lugar, el análisis se realiza utilizando información agregada por comunidad autónoma, lo que impide capturar la heterogeneidad existente entre hospitales individuales o entre diferentes áreas sanitarias dentro de una misma comunidad. En consecuencia, las conclusiones deben interpretarse como tendencias observadas a nivel del sistema sanitario regional y no como el comportamiento de centros hospitalarios concretos.
+
+En segundo lugar, el estudio se basa en información procedente del Sistema de Información de Atención Especializada (SIAE), cuya metodología de recogida y definición de algunos indicadores ha experimentado modificaciones a lo largo del período analizado. Aunque durante la fase de auditoría se excluyeron aquellas variables cuya comparabilidad temporal resultaba insuficiente, no puede descartarse completamente la influencia de cambios metodológicos menores sobre determinadas series.
+
+Asimismo, la naturaleza observacional de los datos no permite establecer relaciones causales en sentido estricto entre la pandemia y la evolución de los indicadores analizados. Los modelos econométricos estimados identifican desviaciones respecto a la trayectoria previa compatibles con el impacto de la COVID-19, pero no permiten aislar completamente el efecto de otros factores que pudieron influir simultáneamente sobre la organización asistencial.
+
+Por otra parte, el modelo incorpora una tendencia temporal común para todas las comunidades autónomas, asumiendo que la evolución estructural previa a la pandemia fue similar entre territorios una vez controladas sus diferencias estructurales mediante efectos fijos. Aunque los análisis de robustez realizados muestran una elevada estabilidad de los resultados, este supuesto constituye una simplificación de la realidad.
+
+Finalmente, el período de estudio finaliza en 2024. La disponibilidad de nuevas observaciones en los próximos años permitirá comprobar si los cambios persistentes identificados en algunos indicadores representan transformaciones estructurales consolidadas o si responden a un proceso de recuperación todavía incompleto.
+
+# Conclusiones
+
+El presente trabajo ha analizado el impacto de la pandemia de COVID-19 sobre la organización asistencial de los hospitales públicos españoles mediante el estudio de la evolución de siete indicadores representativos durante el período 2010-2024. Para ello se empleó un modelo de datos de panel con efectos fijos por comunidad autónoma y una especificación dinámica que permitió estimar de forma independiente las desviaciones observadas en cada uno de los años posteriores al inicio de la pandemia.
+
+Los resultados obtenidos muestran que la pandemia modificó la evolución de diversos indicadores de organización asistencial, aunque estos cambios no fueron homogéneos ni persistieron con la misma intensidad. Mientras que algunos indicadores, como las altas hospitalarias y el índice de ocupación, presentan desviaciones sostenidas respecto a la trayectoria observada antes de 2020, otros, como las consultas hospitalarias y la actividad en urgencias, muestran una recuperación progresiva compatible con un efecto fundamentalmente transitorio.
+
+Por su parte, la cirugía mayor ambulatoria, la estancia media y la dotación de puestos de hospital de día no presentan evidencia de cambios estructurales atribuibles a la pandemia una vez considerada la evolución que ya seguían antes de 2020. Estos resultados sugieren que determinadas transformaciones organizativas observadas durante los últimos años responden principalmente a procesos de cambio ya iniciados con anterioridad a la crisis sanitaria.
+
+Los análisis de robustez realizados respaldan la estabilidad de las principales conclusiones obtenidas, indicando que la interpretación de los resultados no depende de forma sustancial de la especificación econométrica empleada. En conjunto, la evidencia obtenida permite concluir que la pandemia actuó tanto como un factor de interrupción temporal de la actividad asistencial como un acelerador de determinadas tendencias organizativas preexistentes, más que como el origen de una transformación estructural generalizada del sistema hospitalario español.
+
+Desde una perspectiva aplicada, los resultados ponen de manifiesto la importancia de evaluar la evolución de los indicadores asistenciales desde una perspectiva longitudinal, distinguiendo entre alteraciones coyunturales y cambios persistentes. Este enfoque puede contribuir a mejorar la planificación sanitaria y a orientar futuras estrategias dirigidas a incrementar la capacidad de adaptación y la resiliencia del Sistema Nacional de Salud ante situaciones de elevada presión asistencial.
+
+# Agradecimientos
+
+Quiero expresar mi más sincero agradecimiento al profesor doctor Mariano Matilla García por su orientación, disponibilidad y apoyo a lo largo de la realización de este trabajo. Sus comentarios, sugerencias y observaciones críticas han contribuido de manera decisiva a mejorar tanto el planteamiento metodológico como la interpretación de los resultados. Agradezco especialmente el rigor y la profundidad de sus revisiones, que me han permitido reflexionar sobre numerosos aspectos del análisis y enriquecer significativamente la calidad final del estudio. Cualquier error u omisión que pudiera permanecer es responsabilidad exclusiva del autor.
+
+El autor agradece el uso de herramientas de inteligencia artificial generativa (ChatGPT, OpenAI) como apoyo en tareas de programación, depuración de código, revisión de redacción y discusión metodológica. Todas las decisiones relativas al diseño de la investigación, selección de variables, estimación de modelos, interpretación de resultados y redacción final del trabajo han sido realizadas y supervisadas por el autor.
+
+# Bibliografía y referencias
+
+Angrist, J. D., & Pischke, J.-S. (2009). *Mostly Harmless Econometrics: An Empiricist's Companion*. Princeton University Press.
+
+Clarke, D., & Tapia-Schythe, K. (2020). *Implementing the Panel Event Study*. IZA Discussion Paper No. 13524. Institute of Labor Economics (IZA).
+
+Instituto Nacional de Estadística. (2025). *Índice de Precios de Consumo (IPC). Base 2010*. https://www.ine.es
+
+Keesara, S., Jonas, A., & Schulman, K. (2020). COVID-19 and Health Care's Digital Revolution. *New England Journal of Medicine*, *382*(23), e82.
+
+Ministerio de Sanidad. (2025). *Sistema de Información de Atención Especializada (SIAE): Estadística de Centros Sanitarios de Atención Especializada*. Gobierno de España. https://pestadistico.inteligenciadegestion.sanidad.gob.es/publicoSNS/N/siae/siae/hospitales
+
+Moynihan, R., Sanders, S., Michaleff, Z. A., Scott, A. M., Clark, J., To, E. J., Jones, M., Kitchener, E., Fox, M., Johansson, M., Lang, E., Duggan, A., Scott, I., & Albarqouni, L. (2021). Impact of COVID-19 pandemic on utilisation of healthcare services: A systematic review. *BMJ Open*, *11*, e045343.
+
+OECD. (2023). *Health at a Glance 2023: OECD Indicators*. OECD Publishing.
+
+Webster, P. (2020). Virtual health care in the era of COVID-19. *The Lancet*, *395*(10231), 1180–1181.
+
+Wooldridge, J. M. (2020). *Introductory Econometrics: A Modern Approach* (7th ed.). Cengage Learning.
+
+# Anexos
+
+## Anexo 1. Diccionario de datos
+
+```{r}
+
+tabla_diccionario <- formatear_tabla(
+  datos_diccionario,
+  titulo = "Tabla 1. Diccionario de variables",
+  subtitulo = "Variables incluidas en la base de datos del estudio",
+  fuente = "Fuente: elaboración propia a partir del SIAE."
+)
+
+```
+
+## Anexo 2.- Código fuente
+
+El código fuente en R utilizado se encuentra disponible en: 
